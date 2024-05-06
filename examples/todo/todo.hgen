@@ -1,0 +1,21 @@
+type Id = String & { format: "uuid" };
+
+interface Todo {
+  id: Id;
+  title: String;
+  createdAt: Instant;
+  checkedAt?: Instant;
+}
+
+interface CreateTodo {
+  title: String;
+}
+
+service TodoService {
+  createTodo: (params: CreateTodo) => Todo;
+  getTodo: (id: Id) => Todo;
+  getTodos: () => List<Todo>;
+  checkTodo: (id: Id);
+  uncheckTodo: (id: Id);
+  deleteTodo: (id: Id);
+}
