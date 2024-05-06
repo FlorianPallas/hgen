@@ -124,20 +124,25 @@ export class User {
 ### Targets
 
 - TypeScript
+
   - [x] Types
   - [x] Reflection
-  - [ ] Client
-  - [ ] Server
+  - [ ] Serialization
+  - [ ] Package
+
 - Dart
+
   - [x] Types
   - [ ] Reflection
-  - [ ] Client
-  - [ ] Server
+  - [ ] Serialization
+  - [ ] Package
+
 - Rust
+
   - [x] Types
   - [ ] Reflection
-  - [ ] Client
-  - [ ] Server
+  - [ ] Serialization
+  - [ ] Package
 
 ### Types
 
