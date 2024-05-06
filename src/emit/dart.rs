@@ -3,9 +3,6 @@ use crate::schema::*;
 pub fn emit_schema(schema: &Schema) -> String {
     let mut output = String::new();
 
-    output.push_str("import 'package:json_annotation/json_annotation.dart';\n\n");
-    output.push_str(&format!("part '{}.g.dart';\n\n", schema.name));
-
     output.push_str(
         &schema
             .objects
@@ -21,9 +18,10 @@ pub fn emit_schema(schema: &Schema) -> String {
 fn emit_object(schema: &Schema, object: &Object) -> String {
     let mut output = String::new();
 
-    output.push_str("@JsonSerializable()\n");
     output.push_str(&format!("class {} ", &object.name));
     output.push_str("{\n");
+
+    // Emit fields
     object.fields.iter().for_each(|field| {
         output.push_str(&format!(
             "  {} {};\n",
@@ -32,26 +30,28 @@ fn emit_object(schema: &Schema, object: &Object) -> String {
         ));
     });
     output.push_str("\n");
+
+    // Emit constructor
     output.push_str(format!("  {}({{\n", &object.name).as_str());
     object.fields.iter().for_each(|field| {
         output.push_str(&format!("    required this.{},\n", field.name,));
     });
     output.push_str("  });\n");
     output.push_str("\n");
-    output.push_str(
-        format!(
-            "  factory {}.fromJson(Map<String, dynamic> json) => _${}FromJson(json);\n",
-            &object.name, &object.name
-        )
-        .as_str(),
-    );
-    output.push_str(
-        format!(
-            "  Map<String, dynamic> toJson() => _${}ToJson(this);\n",
-            &object.name
-        )
-        .as_str(),
-    );
+
+    // Emit serialization methods
+    output.push_str(&format!(
+        "  static void $hWrite(Writer writer,value:{}) => {{}}\n",
+        object.name
+    ));
+    output.push_str(&format!(
+        "  factory {}.$hRead(Reader reader) => {{}}\n",
+        object.name
+    ));
+
+    // Emit reflection fields
+    output.push_str("  static Schema $hSchema = {};\n");
+
     output.push_str("}\n");
 
     output
