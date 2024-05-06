@@ -59,7 +59,7 @@ fn emit_object(schema: &Schema, object: &Object) -> String {
 
 fn emit_shape(schema: &Schema, shape: &Shape) -> String {
     match shape {
-        Shape::Primitive(def) => emit_simple_shape(schema, def),
+        Shape::Simple(def) => emit_simple_shape(schema, def),
         Shape::Nullable(inner) => format!("{}?", emit_shape(schema, inner)),
         Shape::List(inner) => format!("List<{}>", emit_simple_shape(schema, inner)),
         Shape::Set(inner) => format!("Set<{}>", emit_simple_shape(schema, inner)),

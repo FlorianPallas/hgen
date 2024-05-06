@@ -52,7 +52,7 @@ pub struct Field {
 
 #[derive(Debug, PartialEq)]
 pub enum Shape {
-    Primitive(SimpleShape),
+    Simple(SimpleShape),
     Nullable(Box<Shape>),
     List(Box<SimpleShape>),
     Set(Box<SimpleShape>),
@@ -80,6 +80,18 @@ impl SimpleShape {
             "Float32" => SimpleShape::Float32,
             "Float64" => SimpleShape::Float64,
             _ => SimpleShape::Ref(name.to_owned()),
+        }
+    }
+
+    pub fn to_str(&self) -> &str {
+        match self {
+            SimpleShape::String => "String",
+            SimpleShape::Bool => "Bool",
+            SimpleShape::Int32 => "Int32",
+            SimpleShape::Int64 => "Int64",
+            SimpleShape::Float32 => "Float32",
+            SimpleShape::Float64 => "Float64",
+            SimpleShape::Ref(name) => name,
         }
     }
 }

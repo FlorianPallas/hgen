@@ -140,7 +140,7 @@ fn parse_field(context: &mut Context) -> Field {
     context.read_token(Token::SemiColon);
 
     let shape = if args.is_empty() {
-        Shape::Primitive(SimpleShape::from_str(&identifier))
+        Shape::Simple(SimpleShape::from_str(&identifier))
     } else {
         match identifier.as_str() {
             "List" => {
