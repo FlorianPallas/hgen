@@ -4,12 +4,12 @@ extern crate test;
 
 use clap::Parser;
 use console::style;
-use model::*;
+use schema::*;
 use std::{fs, str::FromStr, time::Instant};
 
-mod generate;
-mod model;
+mod emit;
 mod parse;
+mod schema;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -62,7 +62,7 @@ fn main() {
 
     println!("{} Parsing schema...", style("[1/2]").bold().dim());
     let input = fs::read_to_string(options.input.clone()).unwrap();
-    let schema = parse::parse(&input);
+    let schema = parse::parse_schema(&input);
 
     let strategy = options.strategy.unwrap_or(
         Strategy::from_str(&format!(".{}", options.output.split('.').last().unwrap())).unwrap(),
@@ -79,11 +79,11 @@ fn main() {
     println!("done in {}μs", started.elapsed().as_micros());
 }
 
-fn emit_schema(schema: &ModuleDef, strategy: Strategy) -> String {
+fn emit_schema(schema: &Schema, strategy: Strategy) -> String {
     match strategy {
-        Strategy::Rust => generate::rs::generate(&schema),
-        Strategy::TypeScript => generate::ts::generate(&schema),
-        Strategy::Dart => generate::dart::generate(&schema),
+        Strategy::Rust => emit::rs::emit_schema(&schema),
+        Strategy::TypeScript => emit::ts::emit_schema(&schema),
+        Strategy::Dart => emit::dart::emit_schema(&schema),
     }
 }
 
@@ -97,34 +97,34 @@ mod tests {
         let input = fs::read_to_string("examples/duxtura/api.hgen").unwrap();
 
         b.iter(|| {
-            parse::parse(&input);
+            parse::parse_schema(&input);
         });
     }
 
     #[bench]
     pub fn benchmark_rust(b: &mut Bencher) {
-        let schema = parse::parse(&fs::read_to_string("examples/duxtura/api.hgen").unwrap());
+        let schema = parse::parse_schema(&fs::read_to_string("examples/duxtura/api.hgen").unwrap());
 
         b.iter(|| {
-            generate::rs::generate(&schema);
+            emit::rs::emit_schema(&schema);
         });
     }
 
     #[bench]
     pub fn benchmark_typescript(b: &mut Bencher) {
-        let schema = parse::parse(&fs::read_to_string("examples/duxtura/api.hgen").unwrap());
+        let schema = parse::parse_schema(&fs::read_to_string("examples/duxtura/api.hgen").unwrap());
 
         b.iter(|| {
-            generate::ts::generate(&schema);
+            emit::ts::emit_schema(&schema);
         });
     }
 
     #[bench]
     pub fn benchmark_dart(b: &mut Bencher) {
-        let schema = parse::parse(&fs::read_to_string("examples/duxtura/api.hgen").unwrap());
+        let schema = parse::parse_schema(&fs::read_to_string("examples/duxtura/api.hgen").unwrap());
 
         b.iter(|| {
-            generate::dart::generate(&schema);
+            emit::dart::emit_schema(&schema);
         });
     }
 }

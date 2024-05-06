@@ -1,7 +1,9 @@
-type Id = String & { format: "uuid" };
+custom Instant;
 
 interface Todo {
-  id: Id;
+  id: String & {
+    type: uuid;
+  };
   title: String;
   createdAt: Instant;
   checkedAt?: Instant;

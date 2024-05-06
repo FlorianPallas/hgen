@@ -41,6 +41,44 @@ service UserService {
 
 ## Beyond Types
 
+### Custom Types
+
+Since hGEN provides only basic types, there is a need for custom types. Let's see how you might implement a timestamp type.
+
+```ts
+custom Timestamp;
+
+interface Event {
+  type: String;
+  createdAt: Timestamp;
+}
+```
+
+This will generate the event type as you might expect, with the timestamp type imported from a user-managed file.
+
+```ts
+import { Timestamp } from "./custom";
+
+export class Event {
+  type: String;
+  createdAt: Timestamp;
+}
+```
+
+You will have to provide you own implementation of the type, including serialization and reflection if you intend to use it.
+
+```ts
+export const Timestamp = {
+  serialize: (value) => value.toISOString(),
+  deserialize: (value) => new Date(value),
+  $hGEN: { shape: "string", data: {} },
+} as const;
+export type Timestamp = Date;
+```
+
+> [!Warning]
+> Since the schema gives no information about how to serialize our `Timestamp` type, it is strictly necessary to make sure all clients use the same serialization.
+
 ### Reflection
 
 Since hGEN knows the structure of your API better than every other tool in your stack, it can provide powerful reflection capabilities. Optionally hGEN can bake in reflection metadata into the generated code, allowing you to inspect and manipulate your API at runtime.
@@ -110,28 +148,23 @@ export class User {
   - [ ] `UInt32`, `UInt64`
   - [x] `Float32`, `Float64`
   - [x] `String`
-  - [x] `?` Nullable
+  - [x] `Nullable`
 
 - Object Types:
 
   - [x] `struct`
-  - [x] `enum`
-  - [ ] `bitflags`
+  - [ ] `enum`
 
 - Collection Types:
 
+  - [ ] `[T, size]`
   - [x] `List<T>`
   - [x] `Set<T>`
   - [x] `Map<K, V>`
 
-- Complex Types:
-
-  - [x] `Instant`
-  - [ ] `Duration`
-
 - Other
 
+  - [x] Custom Types
   - [ ] `A | B` Unions / Rust Enums
   - [ ] `(T1, T2, ..., Tn)` Tuples
-  - [ ] Custom Types
   - [ ] Strong Error Types / Rust Results

@@ -1,14 +1,13 @@
 use std::{collections::HashMap, iter::Peekable, vec::IntoIter};
 
-use crate::{EnumDef, FieldDef, ModuleDef, ObjectDef, SimpleTypeDef, TypeDef};
+use crate::{CustomShape, Field, Object, Schema, Shape, SimpleShape};
 
-pub fn parse(input: &str) -> ModuleDef {
+pub fn parse_schema(input: &str) -> Schema {
     let tokens = get_tokens(input);
     let mut context = Context {
         iter: tokens.into_iter().peekable(),
     };
-
-    read_module(&mut context)
+    parse_module(&mut context)
 }
 
 struct Context {
@@ -49,34 +48,42 @@ impl Context {
     }
 }
 
-fn read_module(context: &mut Context) -> ModuleDef {
+fn parse_module(context: &mut Context) -> Schema {
     let mut objects = Vec::new();
-    let mut enums = Vec::new();
+    let mut custom_types = Vec::new();
 
     loop {
         if let Some(token) = context.iter.peek() {
             match token {
                 Token::Keyword(Keyword::Interface) => {
-                    objects.push(read_object(context));
+                    objects.push(parse_object(context));
                 }
-                Token::Keyword(Keyword::Enum) => {
-                    enums.push(read_enum(context));
+                Token::Keyword(Keyword::Custom) => {
+                    custom_types.push(parse_custom_type(context));
                 }
-                _ => panic!("Expected interface or enum but got {:?}", token),
+                _ => panic!("Expected interface but got {:?}", token),
             }
         } else {
             break;
         }
     }
 
-    ModuleDef {
+    Schema {
         name: "api".to_owned(),
         objects,
-        enums,
+        custom_shapes: custom_types,
     }
 }
 
-fn read_object(context: &mut Context) -> ObjectDef {
+fn parse_custom_type(context: &mut Context) -> CustomShape {
+    context.read_token(Token::Keyword(Keyword::Custom));
+    let name = context.read_identifier();
+    context.read_token(Token::SemiColon);
+
+    CustomShape { name }
+}
+
+fn parse_object(context: &mut Context) -> Object {
     context.read_token(Token::Keyword(Keyword::Interface));
     let name = context.read_identifier();
     context.read_token(Token::OpenBrace);
@@ -85,33 +92,14 @@ fn read_object(context: &mut Context) -> ObjectDef {
 
     loop {
         if context.pop_if(Token::CloseBrace).is_some() {
-            break ObjectDef { name, fields };
+            break Object { name, fields };
         }
 
-        fields.push(read_property(context));
+        fields.push(parse_field(context));
     }
 }
 
-fn read_enum(context: &mut Context) -> EnumDef {
-    context.read_token(Token::Keyword(Keyword::Enum));
-    let name = context.read_identifier();
-    context.read_token(Token::OpenBrace);
-
-    let mut values = Vec::new();
-
-    loop {
-        if context.pop_if(Token::CloseBrace).is_some() {
-            break;
-        }
-
-        values.push(context.read_identifier());
-        context.read_token(Token::Comma);
-    }
-
-    EnumDef { name, values }
-}
-
-fn read_property(context: &mut Context) -> FieldDef {
+fn parse_field(context: &mut Context) -> Field {
     let name = context.read_identifier();
     let nullable = context.pop_if(Token::QuestionMark).is_some();
 
@@ -131,7 +119,7 @@ fn read_property(context: &mut Context) -> FieldDef {
         }
     }
 
-    let mut metadata = HashMap::new();
+    let mut data = HashMap::new();
     if context.pop_if(Token::Ampersand).is_some() {
         context.pop(Token::OpenBrace);
 
@@ -141,7 +129,7 @@ fn read_property(context: &mut Context) -> FieldDef {
             let value = context.read_identifier();
             context.read_token(Token::SemiColon);
 
-            metadata.insert(key, value);
+            data.insert(key, value);
 
             if context.pop_if(Token::CloseBrace).is_some() {
                 break;
@@ -151,8 +139,8 @@ fn read_property(context: &mut Context) -> FieldDef {
 
     context.read_token(Token::SemiColon);
 
-    let type_def = if args.is_empty() {
-        TypeDef::Simple(SimpleTypeDef::from_str(&identifier))
+    let shape = if args.is_empty() {
+        Shape::Primitive(SimpleShape::from_str(&identifier))
     } else {
         match identifier.as_str() {
             "List" => {
@@ -160,34 +148,37 @@ fn read_property(context: &mut Context) -> FieldDef {
                     panic!("Expected one argument for List but got {:?}", args);
                 };
 
-                TypeDef::List(Box::new(SimpleTypeDef::from_str(inner)))
+                Shape::List(Box::new(SimpleShape::from_str(inner)))
             }
             "Set" => {
                 let [inner] = &args[..] else {
                     panic!("Expected one argument for Set but got {:?}", args);
                 };
 
-                TypeDef::Set(Box::new(SimpleTypeDef::from_str(inner)))
+                Shape::Set(Box::new(SimpleShape::from_str(inner)))
             }
             "Map" => {
                 let [key, value] = &args[..] else {
                     panic!("Expected two arguments for Map but got {:?}", args);
                 };
 
-                TypeDef::Map(
-                    Box::new(SimpleTypeDef::from_str(key)),
-                    Box::new(SimpleTypeDef::from_str(value)),
+                Shape::Map(
+                    Box::new(SimpleShape::from_str(key)),
+                    Box::new(SimpleShape::from_str(value)),
                 )
             }
             _ => panic!("Unknown type {}", identifier),
         }
     };
 
-    FieldDef {
+    Field {
         name,
-        metadata,
-        nullable,
-        type_def,
+        data,
+        shape: if nullable {
+            Shape::Nullable(Box::new(shape))
+        } else {
+            shape
+        },
     }
 }
 
@@ -251,14 +242,14 @@ enum Token {
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Keyword {
     Interface,
-    Enum,
+    Custom,
 }
 
 impl Keyword {
     fn from_str(input: &str) -> Option<Self> {
         match input {
             "interface" => Some(Keyword::Interface),
-            "enum" => Some(Keyword::Enum),
+            "custom" => Some(Keyword::Custom),
             _ => None,
         }
     }
