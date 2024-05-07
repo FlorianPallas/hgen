@@ -125,24 +125,33 @@ export class User {
 
 - TypeScript
 
+  > https://www.npmjs.com/package/hgen
+
   - [x] Types
   - [x] Reflection
   - [ ] Serialization
-  - [ ] Package
+  - [ ] Client
+  - [ ] Server
 
 - Dart
 
+  > https://pub.dev/packages/hgen
+
   - [x] Types
   - [ ] Reflection
   - [ ] Serialization
-  - [ ] Package
+  - [ ] Client
+  - [ ] Server
 
 - Rust
 
+  > https://crates.io/crates/hgen
+
   - [x] Types
   - [ ] Reflection
   - [ ] Serialization
-  - [ ] Package
+  - [ ] Client
+  - [ ] Server
 
 ### Types
 
