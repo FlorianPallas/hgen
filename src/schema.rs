@@ -10,13 +10,13 @@ pub struct Schema {
 impl Schema {
     pub fn resolve(&self, name: &str) -> Option<Reference> {
         let object = self.objects.iter().find(|o| o.name == name);
-        if let Some(object) = object {
-            return Some(Reference::Object(&object));
+        if let Some(target) = object {
+            return Some(Reference::Object(target));
         }
 
         let custom = self.custom_shapes.iter().find(|c| c.name == name);
-        if let Some(custom) = custom {
-            return Some(Reference::Custom(&custom));
+        if let Some(target) = custom {
+            return Some(Reference::Custom(target));
         }
 
         return None;

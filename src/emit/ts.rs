@@ -6,16 +6,20 @@ pub fn emit_schema(schema: &Schema) -> String {
     output.push_str(
         "export type Writer = {
   writeBool: (value: boolean) => void;
-  writeString: (value: string) => void;
   writeInt32: (value: number) => void;
+  writeInt64: (value: number) => void;
   writeFloat32: (value: number) => void;
+  writeFloat64: (value: number) => void;
+  writeString: (value: string) => void;
 };
 
 export type Reader = {
   readBool: () => boolean;
-  readString: () => string;
   readInt32: () => number;
+  readInt64: () => number;
   readFloat32: () => number;
+  readFloat64: () => number;
+  readString: () => string;
 };",
     );
 
@@ -53,10 +57,16 @@ fn emit_object(schema: &Schema, message: &Object) -> String {
     output.push_str("{\n");
 
     message.fields.iter().for_each(|field| {
+        let (nullable, shape): (bool, &Shape) = match &field.shape {
+            Shape::Nullable(s) => (true, s),
+            _ => (false, &field.shape),
+        };
+
         output.push_str(&format!(
-            "  {}: {};\n",
+            "  {}{}: {};\n",
             field.name,
-            emit_shape(schema, &field.shape)
+            if nullable { "?" } else { "" },
+            emit_shape(schema, shape)
         ));
     });
 
@@ -146,7 +156,7 @@ fn read_shape(schema: &Schema, name: &str, shape: &Shape) -> String {
                 read_shape(schema, &name, &inner),
             )
         }
-        _ => "/* TODO */".to_owned(),
+        _ => "{} as any /* TODO */".to_owned(),
     }
 }
 
@@ -190,7 +200,11 @@ fn emit_simple_shape(schema: &Schema, shape: &SimpleShape) -> String {
         SimpleShape::Float32 { .. } => "number".to_owned(),
         SimpleShape::Float64 { .. } => "number".to_owned(),
         SimpleShape::String { .. } => "string".to_owned(),
-        SimpleShape::Ref(name) => schema.resolve(&name).unwrap().name().to_owned(),
+        SimpleShape::Ref(name) => schema
+            .resolve(&name)
+            .expect(&format!("Failed to resolve type reference \"{}\"", name))
+            .name()
+            .to_owned(),
     }
 }
 
