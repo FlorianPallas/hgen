@@ -1,6 +1,6 @@
-use crate::schema::*;
+use crate::lang::schema::*;
 
-pub fn emit_schema(schema: &Schema) -> String {
+pub fn emit_schema(_name: &str, schema: &Schema) -> String {
     let mut output = String::new();
 
     output.push_str(
@@ -15,34 +15,34 @@ pub fn emit_schema(schema: &Schema) -> String {
     output
 }
 
-fn emit_object(schema: &Schema, object: &Object) -> String {
+fn emit_object(schema: &Schema, object: &Struct) -> String {
     let mut output = String::new();
 
     output.push_str(&format!("class {} ", &object.name));
     output.push_str("{\n");
 
     // Emit fields
-    object.fields.iter().for_each(|field| {
+    object.fields.iter().for_each(|(name, field)| {
         output.push_str(&format!(
             "  {} {};\n",
             emit_shape(schema, &field.shape),
-            field.name
+            name
         ));
     });
     output.push_str("\n");
 
     // Emit constructor
     output.push_str(format!("  {}({{\n", &object.name).as_str());
-    object.fields.iter().for_each(|field| {
-        let nullable = match &field.shape {
-            Shape::Nullable(_) => true,
+    object.fields.iter().for_each(|(name, field)| {
+        let optional = match &field.shape {
+            Shape::Optional(_) => true,
             _ => false,
         };
 
         output.push_str(&format!(
             "    {}this.{},\n",
-            if nullable { "" } else { "required " },
-            field.name,
+            if optional { "" } else { "required " },
+            name,
         ));
     });
     output.push_str("  });\n");
@@ -61,6 +61,12 @@ fn emit_object(schema: &Schema, object: &Object) -> String {
     // Emit reflection fields
     output.push_str("  static Schema $hSchema = {};\n");
 
+    // TODO: emit utility methods
+    // toString
+    // equals
+    // hashCode
+    // ...
+
     output.push_str("}\n");
 
     output
@@ -68,26 +74,22 @@ fn emit_object(schema: &Schema, object: &Object) -> String {
 
 fn emit_shape(schema: &Schema, shape: &Shape) -> String {
     match shape {
-        Shape::Simple(def) => emit_simple_shape(schema, def),
-        Shape::Nullable(inner) => format!("{}?", emit_shape(schema, inner)),
-        Shape::List(inner) => format!("List<{}>", emit_simple_shape(schema, inner)),
-        Shape::Set(inner) => format!("Set<{}>", emit_simple_shape(schema, inner)),
+        Shape::Primitive(primitive) => match primitive {
+            Primitive::Bool { .. } => "bool".to_owned(),
+            Primitive::Int32 { .. } => "int".to_owned(),
+            Primitive::Int64 { .. } => "int".to_owned(),
+            Primitive::Float32 { .. } => "double".to_owned(),
+            Primitive::Float64 { .. } => "double".to_owned(),
+            Primitive::String { .. } => "String".to_owned(),
+        },
+        Shape::Optional(inner) => format!("{}?", emit_shape(schema, inner)),
+        Shape::List(inner) => format!("List<{}>", emit_shape(schema, inner)),
+        Shape::Set(inner) => format!("Set<{}>", emit_shape(schema, inner)),
         Shape::Map(key, value) => format!(
             "Map<{}, {}>",
-            emit_simple_shape(schema, key),
-            emit_simple_shape(schema, value)
+            emit_shape(schema, key),
+            emit_shape(schema, value)
         ),
-    }
-}
-
-fn emit_simple_shape(schema: &Schema, shape: &SimpleShape) -> String {
-    match shape {
-        SimpleShape::Bool { .. } => "bool".to_owned(),
-        SimpleShape::Int32 { .. } => "int".to_owned(),
-        SimpleShape::Int64 { .. } => "int".to_owned(),
-        SimpleShape::Float32 { .. } => "double".to_owned(),
-        SimpleShape::Float64 { .. } => "double".to_owned(),
-        SimpleShape::String { .. } => "String".to_owned(),
-        SimpleShape::Ref(name) => schema.resolve(&name).unwrap().name().to_owned(),
+        Shape::Reference(name) => schema.resolve(&name).unwrap().name().to_owned(),
     }
 }

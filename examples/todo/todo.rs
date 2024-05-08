@@ -1,5 +1,5 @@
 pub struct Todo {
-    pub id: String,
+    pub id: UUID,
     pub title: String,
     pub created_at: Instant,
     pub checked_at: Option<Instant>,

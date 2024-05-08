@@ -19,103 +19,22 @@
 
 hGEN defines its own schema language to describe APIs. The language is heavily inspired by languages like TypeScript, Kotlin and Dart, making it easy to learn and use. hGEN primitive types are based on Rust however, pushing for a more strict and safe API design.
 
-```ts
-interface User {
-  id: Int64 & {
-    format: "uuid";
-  };
-  firstName: String;
-  middleName?: String;
-  lastName: String;
-  age: Int32;
-}
-
-interface CreateUserRequest {
-  user: User;
-}
-
-service UserService {
-  createUser(firstName: String, lastName: String): User;
-}
 ```
+extern alias Instant;
 
-## Beyond Types
+alias UUID = String & {
+  type: uuid,
+};
 
-### Custom Types
-
-Since hGEN provides only basic types, there is a need for custom types. Let's see how you might implement a timestamp type.
-
-```ts
-custom Timestamp;
-
-interface Event {
-  type: String;
-  createdAt: Timestamp;
+struct Todo {
+  id: UUID,
+  title: String,
+  createdAt: Instant,
+  checkedAt?: Instant,
 }
-```
 
-This will generate the event type as you might expect, with the timestamp type imported from a user-managed file.
-
-```ts
-import { Timestamp } from "./custom";
-
-export class Event {
-  type: String;
-  createdAt: Timestamp;
-}
-```
-
-You will have to provide you own implementation of the type, including serialization and reflection if you intend to use it.
-
-```ts
-export const Timestamp = {
-  serialize: (value) => value.toISOString(),
-  deserialize: (value) => new Date(value),
-  $hGEN: { shape: "string", data: {} },
-} as const;
-export type Timestamp = Date;
-```
-
-> [!Warning]
-> Since the schema gives no information about how to serialize our `Timestamp` type, it is strictly necessary to make sure all clients use the same serialization.
-
-### Reflection
-
-Since hGEN knows the structure of your API better than every other tool in your stack, it can provide powerful reflection capabilities. Optionally hGEN can bake in reflection metadata into the generated code, allowing you to inspect and manipulate your API at runtime.
-
-```ts
-export class User {
-  id: string;
-  name: string;
-
-  static $fields = {
-    id: {
-      type: "string",
-      nullable: false,
-      data: { type: "uuid" },
-    },
-    name: {
-      type: "string",
-      nullable: false,
-      data: {},
-    },
-  } as const;
-}
-```
-
-### Validation
-
-With hGENs scalable metadata format, validation can be defined directly in the schema. This allows you to share validation logic between your backend and frontend, making it easy to give real-time feedback to your users without spamming your API with invalid requests.
-
-```ts
-export class User {
-  id: string & {
-    format: "uuid";
-  };
-  name: string & {
-    min: 1;
-    max: 100;
-  };
+struct CreateTodo {
+  title: String,
 }
 ```
 
@@ -127,31 +46,13 @@ export class User {
 
   > https://www.npmjs.com/package/hgen
 
-  - [x] Types
-  - [x] Reflection
-  - [ ] Serialization
-  - [ ] Client
-  - [ ] Server
-
 - Dart
 
   > https://pub.dev/packages/hgen
 
-  - [x] Types
-  - [ ] Reflection
-  - [ ] Serialization
-  - [ ] Client
-  - [ ] Server
-
 - Rust
 
   > https://crates.io/crates/hgen
-
-  - [x] Types
-  - [ ] Reflection
-  - [ ] Serialization
-  - [ ] Client
-  - [ ] Server
 
 ### Types
 
@@ -162,23 +63,24 @@ export class User {
   - [ ] `UInt32`, `UInt64`
   - [x] `Float32`, `Float64`
   - [x] `String`
-  - [x] `Nullable`
+  - [x] `Optional`
 
 - Object Types:
 
   - [x] `struct`
-  - [ ] `enum`
+  - [x] `enum`
+  - [ ] Data Enums
 
 - Collection Types:
 
   - [ ] `[T, size]`
+  - [ ] `(T1, T2, ..., Tn)` Tuples
   - [x] `List<T>`
   - [x] `Set<T>`
   - [x] `Map<K, V>`
 
 - Other
 
-  - [x] Custom Types
-  - [ ] `A | B` Unions / Rust Enums
-  - [ ] `(T1, T2, ..., Tn)` Tuples
-  - [ ] Strong Error Types / Rust Results
+  - [x] Type Aliases
+  - [x] External Types
+  - [ ] Result Types

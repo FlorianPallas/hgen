@@ -1,13 +1,8 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'todo.g.dart';
-
-@JsonSerializable()
 class Todo {
-  String id;
+  UUID id;
   String title;
-  DateTime createdAt;
-  DateTime? checkedAt;
+  Instant createdAt;
+  Instant? checkedAt;
 
   Todo({
     required this.id,
@@ -16,11 +11,11 @@ class Todo {
     this.checkedAt,
   });
 
-  factory Todo.fromJson(Map<String, dynamic> json) => _$TodoFromJson(json);
-  Map<String, dynamic> toJson() => _$TodoToJson(this);
+  static void $hWrite(Writer writer,value:Todo) => {}
+  factory Todo.$hRead(Reader reader) => {}
+  static Schema $hSchema = {};
 }
 
-@JsonSerializable()
 class CreateTodo {
   String title;
 
@@ -28,7 +23,7 @@ class CreateTodo {
     required this.title,
   });
 
-  factory CreateTodo.fromJson(Map<String, dynamic> json) => _$CreateTodoFromJson(json);
-  Map<String, dynamic> toJson() => _$CreateTodoToJson(this);
+  static void $hWrite(Writer writer,value:CreateTodo) => {}
+  factory CreateTodo.$hRead(Reader reader) => {}
+  static Schema $hSchema = {};
 }
-

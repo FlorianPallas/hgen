@@ -1,48 +1,44 @@
-use crate::schema::*;
+use std::collections::HashMap;
 
-pub fn emit_schema(schema: &Schema) -> String {
+use crate::lang::schema::*;
+
+pub fn emit_schema(name: &str, schema: &Schema) -> String {
     let mut output = String::new();
 
-    output.push_str(
-        "export type Writer = {
-  writeBool: (value: boolean) => void;
-  writeInt32: (value: number) => void;
-  writeInt64: (value: number) => void;
-  writeFloat32: (value: number) => void;
-  writeFloat64: (value: number) => void;
-  writeString: (value: string) => void;
-};
-
-export type Reader = {
-  readBool: () => boolean;
-  readInt32: () => number;
-  readInt64: () => number;
-  readFloat32: () => number;
-  readFloat64: () => number;
-  readString: () => string;
-};",
-    );
-
-    output.push_str("\n\n");
-
     output.push_str(&format!(
-        "import {{ {} }} from './{}.custom';",
+        "import {{ {} }} from './{}.extern';\n\n",
         schema
-            .custom_shapes
+            .extern_types
             .iter()
             .map(|t| t.name.clone())
             .collect::<Vec<_>>()
             .join(", "),
-        schema.name
+        name
     ));
 
-    output.push_str("\n\n");
+    output.push_str(
+        &schema
+            .aliases
+            .iter()
+            .map(|a| emit_alias(schema, a))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+
+    output.push_str(
+        &schema
+            .enums
+            .iter()
+            .map(|e| emit_enum(schema, e))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
 
     output.push_str(
         &schema
             .objects
             .iter()
-            .map(|model| emit_object(schema, model))
+            .map(|s| emit_object(schema, s))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -50,205 +46,95 @@ export type Reader = {
     output
 }
 
-fn emit_object(schema: &Schema, message: &Object) -> String {
+fn emit_alias(schema: &Schema, alias: &Alias) -> String {
+    format!(
+        "export type {} = {};\n\n",
+        alias.name,
+        emit_type(schema, &alias.def.shape, &alias.def.data)
+    )
+}
+
+fn emit_enum(_schema: &Schema, message: &Enum) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("export class {} ", message.name));
+    output.push_str(&format!("export enum {} ", message.name));
     output.push_str("{\n");
-
-    message.fields.iter().for_each(|field| {
-        let (nullable, shape): (bool, &Shape) = match &field.shape {
-            Shape::Nullable(s) => (true, s),
-            _ => (false, &field.shape),
-        };
-
-        output.push_str(&format!(
-            "  {}{}: {};\n",
-            field.name,
-            if nullable { "?" } else { "" },
-            emit_shape(schema, shape)
-        ));
+    message.fields.iter().for_each(|(name, _)| {
+        output.push_str(&format!("  {},\n", name));
     });
-
-    output.push_str("\n");
-
-    output.push_str(&format!(
-        "  static $hWrite=(writer:Writer,value:{})=>{{",
-        message.name
-    ));
-    message.fields.iter().for_each(|field| {
-        output.push_str(&write_shape(schema, &field.name, &field.shape));
-    });
-    output.push_str("}");
-
-    output.push_str("\n");
-
-    output.push_str(&format!(
-        "  static $hRead=(reader:Reader):{}=>({{",
-        message.name
-    ));
-    output.push_str(
-        &message
-            .fields
-            .iter()
-            .map(|field| {
-                format!(
-                    "{}:{}",
-                    field.name,
-                    read_shape(schema, &field.name, &field.shape)
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(","),
-    );
-    output.push_str("})");
-
-    output.push_str("\n");
-
-    output.push_str("  static $hSchema={");
-    output.push_str(
-        &message
-            .fields
-            .iter()
-            .map(|field| {
-                format!(
-                    "{}:{{{},data:{{{}}}}}",
-                    field.name,
-                    reflect_shape(schema, &field.shape),
-                    field
-                        .data
-                        .iter()
-                        .map(|(k, v)| format!("{}:'{}'", k, v))
-                        .collect::<Vec<_>>()
-                        .join(",")
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(","),
-    );
-    output.push_str("} as const\n");
-
     output.push_str("}\n");
 
     output
 }
 
-fn write_shape(schema: &Schema, name: &str, shape: &Shape) -> String {
-    match shape {
-        Shape::Simple(inner) => write_simple_shape(schema, &name, &inner),
-        Shape::Nullable(inner) => {
-            format!(
-                "if(value.{}!==undefined){{writer.writeBool(true);{}}}else{{writer.writeBool(false)}};",
-                name,
-                write_shape(schema, &name, &inner),
-            )
-        }
-        _ => "/* TODO */".to_owned(),
-    }
+fn emit_object(schema: &Schema, message: &Struct) -> String {
+    let mut output = String::new();
+
+    output.push_str(&format!("export class {} ", message.name));
+    output.push_str("{\n");
+    message.fields.iter().for_each(|(name, def)| {
+        let data = def.data.clone();
+        let (optional, shape): (bool, &Shape) = match &def.shape {
+            Shape::Optional(s) => (true, s),
+            _ => (false, &def.shape),
+        };
+
+        output.push_str(&format!(
+            "  {}{}: {};\n",
+            name,
+            if optional { "?" } else { "" },
+            emit_type(schema, shape, &data)
+        ));
+    });
+    output.push_str("}\n");
+
+    output
 }
 
-fn read_shape(schema: &Schema, name: &str, shape: &Shape) -> String {
-    match shape {
-        Shape::Simple(inner) => read_simple_shape(schema, &name, &inner),
-        Shape::Nullable(inner) => {
-            format!(
-                "reader.readBool()?{}:undefined",
-                read_shape(schema, &name, &inner),
-            )
-        }
-        _ => "{} as any /* TODO */".to_owned(),
+fn emit_type(schema: &Schema, shape: &Shape, data: &HashMap<String, String>) -> String {
+    let mut output = String::new();
+
+    output.push_str(&emit_shape(schema, shape));
+    if !data.is_empty() {
+        output.push_str(" & ");
+        output.push_str(&emit_metadata(schema, data));
     }
+
+    output
 }
 
-fn write_simple_shape(schema: &Schema, name: &str, shape: &SimpleShape) -> String {
-    match shape {
-        SimpleShape::Ref(type_name) => {
-            format!("{}.$hWrite(writer,value.{});", type_name, name)
-        }
-        _ => format!("writer.write{}(value.{});", shape.to_str(), name),
-    }
-}
-
-fn read_simple_shape(schema: &Schema, name: &str, shape: &SimpleShape) -> String {
-    match shape {
-        SimpleShape::Ref(type_name) => {
-            format!("{}.$hRead(reader)", type_name)
-        }
-        _ => format!("reader.read{}()", shape.to_str()),
-    }
+fn emit_metadata(_schema: &Schema, data: &HashMap<String, String>) -> String {
+    format!(
+        "{{\n{}\n}}",
+        data.iter()
+            .map(|(k, v)| format!("  {}: '{}'", k, v))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 fn emit_shape(schema: &Schema, shape: &Shape) -> String {
     match shape {
-        Shape::Simple(primitive) => emit_simple_shape(schema, primitive),
-        Shape::Nullable(inner) => format!("({} | undefined)", emit_shape(schema, inner)),
-        Shape::List(inner) => format!("Array<{}>", emit_simple_shape(schema, inner)),
-        Shape::Set(inner) => format!("Set<{}>", emit_simple_shape(schema, inner)),
+        Shape::Primitive(primitive) => match primitive {
+            Primitive::Bool { .. } => "boolean".to_owned(),
+            Primitive::Int32 { .. } => "number".to_owned(),
+            Primitive::Int64 { .. } => "number".to_owned(),
+            Primitive::Float32 { .. } => "number".to_owned(),
+            Primitive::Float64 { .. } => "number".to_owned(),
+            Primitive::String { .. } => "string".to_owned(),
+        },
+        Shape::Optional(inner) => format!("({} | undefined)", emit_shape(schema, inner)),
+        Shape::List(inner) => format!("Array<{}>", emit_shape(schema, inner)),
+        Shape::Set(inner) => format!("Set<{}>", emit_shape(schema, inner)),
         Shape::Map(key, value) => format!(
             "Map<{}, {}>",
-            emit_simple_shape(schema, key),
-            emit_simple_shape(schema, value)
+            emit_shape(schema, key),
+            emit_shape(schema, value)
         ),
-    }
-}
-
-fn emit_simple_shape(schema: &Schema, shape: &SimpleShape) -> String {
-    match shape {
-        SimpleShape::Bool { .. } => "boolean".to_owned(),
-        SimpleShape::Int32 { .. } => "number".to_owned(),
-        SimpleShape::Int64 { .. } => "number".to_owned(),
-        SimpleShape::Float32 { .. } => "number".to_owned(),
-        SimpleShape::Float64 { .. } => "number".to_owned(),
-        SimpleShape::String { .. } => "string".to_owned(),
-        SimpleShape::Ref(name) => schema
+        Shape::Reference(name) => schema
             .resolve(&name)
             .expect(&format!("Failed to resolve type reference \"{}\"", name))
             .name()
             .to_owned(),
-    }
-}
-
-fn reflect_shape(module: &Schema, shape: &Shape) -> String {
-    match shape {
-        Shape::Simple(def) => reflect_simple_shape(module, def),
-        Shape::Nullable(inner) => {
-            format!("type:'optional',inner:{{{}}}", reflect_shape(module, inner))
-        }
-        Shape::List(inner) => {
-            format!(
-                "type:'list',inner:{{{}}}",
-                reflect_simple_shape(module, inner)
-            )
-        }
-        Shape::Set(inner) => {
-            format!(
-                "type:'set',inner:{{{}}}",
-                reflect_simple_shape(module, inner)
-            )
-        }
-        Shape::Map(key, value) => {
-            format!(
-                "type:'map',key:{{{}}},value:{{{}}}",
-                reflect_simple_shape(module, key),
-                reflect_simple_shape(module, value)
-            )
-        }
-    }
-}
-
-fn reflect_simple_shape(schema: &Schema, shape: &SimpleShape) -> String {
-    match shape {
-        SimpleShape::Bool { .. } => "shape:'bool'".to_owned(),
-        SimpleShape::Int32 { .. } => "shape:'int32'".to_owned(),
-        SimpleShape::Int64 { .. } => "shape:'int64'".to_owned(),
-        SimpleShape::Float32 { .. } => "shape:'float32'".to_owned(),
-        SimpleShape::Float64 { .. } => "shape:'float64'".to_owned(),
-        SimpleShape::String { .. } => "shape:'string'".to_owned(),
-        SimpleShape::Ref(name) => {
-            format!(
-                "shape:'reference',ref:()=>{}.$hSchema",
-                schema.resolve(&name).unwrap().name()
-            )
-        }
     }
 }

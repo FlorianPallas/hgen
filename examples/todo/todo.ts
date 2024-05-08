@@ -1,17 +1,16 @@
-export class Todo {
-  id: string;
-  title: string;
-  createdAt: Date;
-  checkedAt?: Date;
+import { Instant } from './todo.extern';
 
-  // prettier-ignore
-  static $fields = {id:{type:'string',nullable:false,data:{format:'"uuid"'}},title:{type:'string',nullable:false,data:{}},createdAt:{type:'instant',nullable:false,data:{}},checkedAt:{type:'instant',nullable:true,data:{}}} as const
+export type UUID = string & {
+  type: 'uuid'
+};
+
+export class Todo {
+  id: UUID;
+  title: string;
+  createdAt: Instant;
+  checkedAt?: Instant;
 }
 
 export class CreateTodo {
   title: string;
-
-  // prettier-ignore
-  static $fields = {title:{type:'string',nullable:false,data:{}}} as const
 }
-
