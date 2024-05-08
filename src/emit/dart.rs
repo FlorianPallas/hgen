@@ -34,7 +34,16 @@ fn emit_object(schema: &Schema, object: &Object) -> String {
     // Emit constructor
     output.push_str(format!("  {}({{\n", &object.name).as_str());
     object.fields.iter().for_each(|field| {
-        output.push_str(&format!("    required this.{},\n", field.name,));
+        let nullable = match &field.shape {
+            Shape::Nullable(_) => true,
+            _ => false,
+        };
+
+        output.push_str(&format!(
+            "    {}this.{},\n",
+            if nullable { "" } else { "required " },
+            field.name,
+        ));
     });
     output.push_str("  });\n");
     output.push_str("\n");
