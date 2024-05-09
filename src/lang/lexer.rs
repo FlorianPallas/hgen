@@ -35,6 +35,8 @@ pub enum Token {
     Keyword(Keyword),
     OpenBrace,
     CloseBrace,
+    OpenParen,
+    CloseParen,
     Colon,
     SemiColon,
     QuestionMark,
@@ -43,6 +45,7 @@ pub enum Token {
     AngleBracketClose,
     Comma,
     Equals,
+    Dash,
 }
 
 impl Token {
@@ -50,6 +53,8 @@ impl Token {
         match input {
             '{' => Token::OpenBrace,
             '}' => Token::CloseBrace,
+            '(' => Token::OpenParen,
+            ')' => Token::CloseParen,
             ':' => Token::Colon,
             ';' => Token::SemiColon,
             '?' => Token::QuestionMark,
@@ -58,6 +63,7 @@ impl Token {
             '>' => Token::AngleBracketClose,
             ',' => Token::Comma,
             '=' => Token::Equals,
+            '-' => Token::Dash,
             _ => return None,
         }
         .into()
@@ -70,6 +76,7 @@ pub enum Keyword {
     Struct,
     Enum,
     Extern,
+    Service,
 }
 
 impl Keyword {
@@ -79,6 +86,7 @@ impl Keyword {
             "struct" => Keyword::Struct,
             "enum" => Keyword::Enum,
             "extern" => Keyword::Extern,
+            "service" => Keyword::Service,
             _ => return None,
         }
         .into()

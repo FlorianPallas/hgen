@@ -106,6 +106,7 @@ impl Context {
 
 fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
     let mut models = Vec::new();
+    let mut services = Vec::new();
 
     loop {
         if let Some(token) = context.peek() {
@@ -122,14 +123,63 @@ fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
                 Token::Keyword(Keyword::Extern) => {
                     models.push(Model::External(parse_extern_type(context)?));
                 }
-                _ => return Err(ParseError::NoToken.into()),
+                Token::Keyword(Keyword::Service) => {
+                    services.push(parse_service(context)?);
+                }
+                _ => {
+                    return Err(ParseError::UnexpectedToken {
+                        expected: token.clone(),
+                    })
+                }
             }
         } else {
             break;
         }
     }
 
-    Ok(Schema { models })
+    Ok(Schema { models, services })
+}
+
+fn parse_service(context: &mut Context) -> Result<Service, ParseError> {
+    context.pop_exact(Token::Keyword(Keyword::Service))?;
+    let name = context.pop_identifier()?;
+    context.pop_exact(Token::OpenBrace)?;
+
+    let mut methods = Vec::new();
+
+    loop {
+        if context.pop_if(Token::CloseBrace).is_some() {
+            break Ok(Service { name, methods });
+        }
+
+        let name = context.pop_identifier()?;
+        context.pop_exact(Token::Colon)?;
+        context.pop_exact(Token::OpenParen)?;
+
+        let mut request = Vec::new();
+        loop {
+            if context.pop_if(Token::CloseParen).is_some() {
+                break;
+            }
+
+            let name = context.pop_identifier()?;
+            context.pop_exact(Token::Colon)?;
+            let def = parse_type(context)?;
+            request.push((name, def));
+            context.pop_if(Token::Comma);
+        }
+
+        context.pop_exact(Token::Dash)?;
+        context.pop_exact(Token::AngleBracketClose)?;
+
+        let response = parse_type(context)?;
+        context.pop_exact(Token::Comma)?;
+        methods.push(Method {
+            name,
+            inputs: request,
+            output: response,
+        });
+    }
 }
 
 fn parse_extern_type(context: &mut Context) -> Result<External, ParseError> {

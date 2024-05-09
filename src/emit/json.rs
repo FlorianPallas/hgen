@@ -16,6 +16,18 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
             .join(",")
     ));
 
+    // emit services
+    output.push_str(",");
+    output.push_str(&format!(
+        "\"services\":{{{}}}",
+        schema
+            .services
+            .iter()
+            .map(emit_service)
+            .collect::<Vec<_>>()
+            .join(",")
+    ));
+
     output.push_str("}");
 
     output
@@ -111,4 +123,39 @@ fn emit_shape(shape: &Shape) -> String {
         ),
         Shape::Reference(name) => format!("{{\"type\":\"Reference\",\"name\":\"{}\"}}", name),
     }
+}
+
+fn emit_service(service: &Service) -> String {
+    let mut output = String::new();
+
+    output.push_str(&format!("\"{}\":{{", service.name));
+    output.push_str("\"type\":\"Service\",");
+
+    output.push_str(&format!(
+        "\"methods\":{{{}}}",
+        service
+            .methods
+            .iter()
+            .map(emit_method)
+            .collect::<Vec<_>>()
+            .join(",")
+    ));
+
+    output.push_str("}");
+
+    output
+}
+
+fn emit_method(method: &Method) -> String {
+    format!(
+        "\"{}\":{{\"inputs\":{{{}}},\"output\":{}}}",
+        method.name,
+        method
+            .inputs
+            .iter()
+            .map(|(name, def)| format!("\"{}\":{}", name, emit_shape(&def.shape)))
+            .collect::<Vec<_>>()
+            .join(","),
+        emit_shape(&method.output.shape)
+    )
 }

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Schema {
     pub models: Vec<Model>,
+    pub services: Vec<Service>,
 }
 
 impl Schema {
@@ -13,6 +14,19 @@ impl Schema {
             .find(|m| m.name() == name)
             .map(|m| m.name())
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Service {
+    pub name: String,
+    pub methods: Vec<Method>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Method {
+    pub name: String,
+    pub inputs: Vec<(String, Type)>,
+    pub output: Type,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
