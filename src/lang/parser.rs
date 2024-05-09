@@ -144,9 +144,11 @@ fn parse_extern_type(context: &mut Context) -> Result<External, ParseError> {
     context.pop_exact(Token::Keyword(Keyword::Extern))?;
     context.pop_exact(Token::Keyword(Keyword::Alias))?;
     let name = context.pop_identifier()?;
+    context.pop_exact(Token::Equals)?;
+    let def = parse_type(context)?;
     context.pop_exact(Token::SemiColon)?;
 
-    Ok(External { name })
+    Ok(External { name, def })
 }
 
 fn parse_alias(context: &mut Context) -> Result<Alias, ParseError> {

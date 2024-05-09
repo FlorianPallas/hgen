@@ -80,6 +80,7 @@ pub struct Alias {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct External {
     pub name: String,
+    pub def: Type,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
