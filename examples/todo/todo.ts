@@ -8,7 +8,7 @@ export class Todo {
   id: UUID;
   title: string;
   createdAt: Instant;
-  checkedAt?: Instant;
+  checkedAt: (Instant | null);
 }
 
 export class CreateTodo {

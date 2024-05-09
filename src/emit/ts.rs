@@ -50,7 +50,7 @@ fn emit_alias(schema: &Schema, alias: &Alias) -> String {
     format!(
         "export type {} = {};\n\n",
         alias.name,
-        emit_type(schema, &alias.def.shape, &alias.def.data)
+        emit_type(schema, &alias.def)
     )
 }
 
@@ -73,31 +73,20 @@ fn emit_object(schema: &Schema, message: &Struct) -> String {
     output.push_str(&format!("export class {} ", message.name));
     output.push_str("{\n");
     message.fields.iter().for_each(|(name, def)| {
-        let data = def.data.clone();
-        let (optional, shape): (bool, &Shape) = match &def.shape {
-            Shape::Optional(s) => (true, s),
-            _ => (false, &def.shape),
-        };
-
-        output.push_str(&format!(
-            "  {}{}: {};\n",
-            name,
-            if optional { "?" } else { "" },
-            emit_type(schema, shape, &data)
-        ));
+        output.push_str(&format!("  {}: {};\n", name, emit_type(schema, &def)));
     });
     output.push_str("}\n");
 
     output
 }
 
-fn emit_type(schema: &Schema, shape: &Shape, data: &HashMap<String, String>) -> String {
+fn emit_type(schema: &Schema, def: &Type) -> String {
     let mut output = String::new();
 
-    output.push_str(&emit_shape(schema, shape));
-    if !data.is_empty() {
+    output.push_str(&emit_shape(schema, &def.shape));
+    if !def.data.is_empty() {
         output.push_str(" & ");
-        output.push_str(&emit_metadata(schema, data));
+        output.push_str(&emit_metadata(schema, &def.data));
     }
 
     output
@@ -123,8 +112,8 @@ fn emit_shape(schema: &Schema, shape: &Shape) -> String {
             Primitive::Float64 { .. } => "number".to_owned(),
             Primitive::String { .. } => "string".to_owned(),
         },
-        Shape::Optional(inner) => format!("({} | undefined)", emit_shape(schema, inner)),
-        Shape::List(inner) => format!("Array<{}>", emit_shape(schema, inner)),
+        Shape::Optional(inner) => format!("({} | null)", emit_shape(schema, inner)),
+        Shape::List(inner) => format!("({}[])", emit_shape(schema, inner)),
         Shape::Set(inner) => format!("Set<{}>", emit_shape(schema, inner)),
         Shape::Map(key, value) => format!(
             "Map<{}, {}>",
