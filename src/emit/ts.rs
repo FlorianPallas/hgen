@@ -5,17 +5,20 @@ use crate::lang::schema::*;
 pub fn emit_schema(name: &str, schema: &Schema) -> String {
     let mut output = String::new();
 
+    // emit externals
     output.push_str(&format!(
-        "import {{ {} }} from './{}.extern';\n\n",
+        "import {{ {} }} from './{}.extern';\n",
         schema
-            .extern_types
+            .externals
             .iter()
             .map(|t| t.name.clone())
             .collect::<Vec<_>>()
             .join(", "),
         name
     ));
+    output.push_str("\n");
 
+    // emit aliases
     output.push_str(
         &schema
             .aliases
@@ -24,7 +27,9 @@ pub fn emit_schema(name: &str, schema: &Schema) -> String {
             .collect::<Vec<_>>()
             .join("\n"),
     );
+    output.push_str("\n");
 
+    // emit enums
     output.push_str(
         &schema
             .enums
@@ -33,7 +38,9 @@ pub fn emit_schema(name: &str, schema: &Schema) -> String {
             .collect::<Vec<_>>()
             .join("\n"),
     );
+    output.push_str("\n");
 
+    // emit objects
     output.push_str(
         &schema
             .objects
@@ -42,13 +49,14 @@ pub fn emit_schema(name: &str, schema: &Schema) -> String {
             .collect::<Vec<_>>()
             .join("\n"),
     );
+    output.push_str("\n");
 
     output
 }
 
 fn emit_alias(schema: &Schema, alias: &Alias) -> String {
     format!(
-        "export type {} = {};\n\n",
+        "export type {} = {};\n",
         alias.name,
         emit_type(schema, &alias.def)
     )

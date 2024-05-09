@@ -6,7 +6,7 @@ pub struct Schema {
     pub objects: Vec<Struct>,
     pub enums: Vec<Enum>,
     pub aliases: Vec<Alias>,
-    pub extern_types: Vec<ExternShape>,
+    pub externals: Vec<External>,
 }
 
 impl Schema {
@@ -26,8 +26,8 @@ impl Schema {
             return Some(Reference::Alias(target));
         }
 
-        let extern_type = self.extern_types.iter().find(|c| c.name == name);
-        if let Some(target) = extern_type {
+        let external_type = self.externals.iter().find(|c| c.name == name);
+        if let Some(target) = external_type {
             return Some(Reference::Extern(target));
         }
 
@@ -38,7 +38,7 @@ impl Schema {
 pub enum Reference<'a> {
     Struct(&'a Struct),
     Enum(&'a Enum),
-    Extern(&'a ExternShape),
+    Extern(&'a External),
     Alias(&'a Alias),
 }
 
@@ -77,6 +77,11 @@ pub struct Alias {
     pub def: Type,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct External {
+    pub name: String,
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Shape {
     Primitive(Primitive),
@@ -95,9 +100,4 @@ pub enum Primitive {
     Int64,
     Float32,
     Float64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExternShape {
-    pub name: String,
 }
