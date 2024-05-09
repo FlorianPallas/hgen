@@ -38,7 +38,7 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
 
 fn emit_model(schema: &Schema, model: &Model, module_name: &str) -> String {
     match model {
-        Model::Struct(s) => emit_object(schema, s),
+        Model::Struct(s) => emit_struct(schema, s),
         Model::Enum(e) => emit_enum(schema, e),
         Model::Alias(a) => emit_alias(schema, a),
         Model::External(_) => format!(
@@ -128,7 +128,7 @@ fn emit_enum(_schema: &Schema, message: &Enum) -> String {
     output
 }
 
-fn emit_object(schema: &Schema, message: &Struct) -> String {
+fn emit_struct(schema: &Schema, message: &Struct) -> String {
     let mut output = String::new();
 
     output.push_str(&format!("export class {} ", message.name));
