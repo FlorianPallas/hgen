@@ -34,7 +34,7 @@ fn emit_struct(def: &Struct) -> String {
     let mut output = String::new();
 
     output.push_str(&format!("\"{}\":{{", def.name));
-    output.push_str("\"type\":\"struct\",");
+    output.push_str("\"type\":\"Struct\",");
 
     output.push_str(&format!(
         "\"fields\":{{{}}}",
@@ -54,7 +54,7 @@ fn emit_enum(def: &Enum) -> String {
     let mut output = String::new();
 
     output.push_str(&format!("\"{}\":{{", def.name));
-    output.push_str("\"type\":\"enum\",");
+    output.push_str("\"type\":\"Enum\",");
 
     output.push_str(&format!(
         "\"fields\":[{}]",
@@ -72,7 +72,7 @@ fn emit_enum(def: &Enum) -> String {
 
 fn emit_alias(alias: &Alias) -> String {
     format!(
-        "\"{}\":{{\"type\":\"alias\",\"inner\":{}}}",
+        "\"{}\":{{\"type\":\"Alias\",\"inner\":{}}}",
         alias.name,
         emit_shape(&alias.def.shape)
     )
@@ -80,7 +80,7 @@ fn emit_alias(alias: &Alias) -> String {
 
 fn emit_external(external: &External) -> String {
     format!(
-        "\"{}\":{{\"type\":\"external\",\"inner\":{}}}",
+        "\"{}\":{{\"type\":\"External\",\"inner\":{}}}",
         external.name,
         emit_shape(&external.def.shape)
     )
@@ -91,24 +91,24 @@ fn emit_shape(shape: &Shape) -> String {
         Shape::Primitive(primitive) => format!(
             "{{\"type\":\"{}\"}}",
             match primitive {
-                Primitive::Bool { .. } => "bool",
-                Primitive::Int32 { .. } => "int32",
-                Primitive::Int64 { .. } => "int64",
-                Primitive::Float32 { .. } => "float32",
-                Primitive::Float64 { .. } => "float64",
-                Primitive::String { .. } => "string",
+                Primitive::Bool { .. } => "Bool",
+                Primitive::Int32 { .. } => "Int32",
+                Primitive::Int64 { .. } => "Int64",
+                Primitive::Float32 { .. } => "Float32",
+                Primitive::Float64 { .. } => "Float64",
+                Primitive::String { .. } => "String",
             }
         ),
         Shape::Nullable(inner) => {
-            format!("{{\"type\":\"nullable\",\"inner\":{}}}", emit_shape(inner))
+            format!("{{\"type\":\"Nullable\",\"inner\":{}}}", emit_shape(inner))
         }
-        Shape::List(inner) => format!("{{\"type\":\"list\",\"inner\":{}}}", emit_shape(inner)),
-        Shape::Set(inner) => format!("{{\"type\":\"set\",\"inner\":{}}}", emit_shape(inner)),
+        Shape::List(inner) => format!("{{\"type\":\"List\",\"inner\":{}}}", emit_shape(inner)),
+        Shape::Set(inner) => format!("{{\"type\":\"Set\",\"inner\":{}}}", emit_shape(inner)),
         Shape::Map(key, value) => format!(
-            "{{\"type\":\"map\",\"key\":{},\"value\":{}}}",
+            "{{\"type\":\"Map\",\"key\":{},\"value\":{}}}",
             emit_shape(key),
             emit_shape(value),
         ),
-        Shape::Reference(name) => format!("{{\"type\":\"reference\",\"name\":\"{}\"}}", name),
+        Shape::Reference(name) => format!("{{\"type\":\"Reference\",\"name\":\"{}\"}}", name),
     }
 }
