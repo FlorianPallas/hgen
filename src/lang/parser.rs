@@ -172,14 +172,9 @@ fn parse_struct(context: &mut Context) -> Result<Struct, ParseError> {
         }
 
         let name = context.pop_identifier()?;
-        let optional = context.pop_if(Token::QuestionMark).is_some();
         context.pop_exact(Token::Colon)?;
-        let mut def = parse_type(context)?;
+        let def = parse_type(context)?;
         context.pop_exact(Token::Comma)?;
-
-        if optional {
-            def.shape = Shape::Optional(Box::new(def.shape));
-        }
         fields.push((name, def));
     }
 }
@@ -237,7 +232,10 @@ fn parse_type(context: &mut Context) -> Result<Type, ParseError> {
         }
     }
 
-    let shape = parse_shape(name, args);
+    let mut shape = parse_shape(name, args);
+    if context.pop_if(Token::QuestionMark).is_some() {
+        shape = Shape::Nullable(Box::new(shape));
+    }
 
     Ok(Type { shape, data })
 }
@@ -252,7 +250,7 @@ fn parse_shape(name: String, args: Vec<String>) -> Shape {
             let [inner] = &args[..] else {
                 panic!("Expected one argument for Optional but got {:?}", args)
             };
-            Shape::Optional(Box::new(parse_shape(inner.to_owned(), vec![])))
+            Shape::Nullable(Box::new(parse_shape(inner.to_owned(), vec![])))
         }
         "List" => {
             let [inner] = &args[..] else {

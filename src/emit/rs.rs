@@ -42,7 +42,7 @@ fn emit_shape(schema: &Schema, shape: &Shape) -> String {
             Primitive::Float64 { .. } => "f64".to_owned(),
             Primitive::String { .. } => "String".to_owned(),
         },
-        Shape::Optional(inner) => format!("Option<{}>", emit_shape(schema, inner)),
+        Shape::Nullable(inner) => format!("Option<{}>", emit_shape(schema, inner)),
         Shape::List(inner) => format!("Vec<{}>", emit_shape(schema, inner)),
         Shape::Set(inner) => format!("Set<{}>", emit_shape(schema, inner)),
         Shape::Map(key, value) => format!(

@@ -80,7 +80,7 @@ pub struct Alias {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Shape {
     Primitive(Primitive),
-    Optional(Box<Shape>),
+    Nullable(Box<Shape>),
     List(Box<Shape>),
     Set(Box<Shape>),
     Map(Box<Shape>, Box<Shape>),

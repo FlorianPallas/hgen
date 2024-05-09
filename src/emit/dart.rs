@@ -35,7 +35,7 @@ fn emit_object(schema: &Schema, object: &Struct) -> String {
     output.push_str(format!("  {}({{\n", &object.name).as_str());
     object.fields.iter().for_each(|(name, field)| {
         let optional = match &field.shape {
-            Shape::Optional(_) => true,
+            Shape::Nullable(_) => true,
             _ => false,
         };
 
@@ -82,7 +82,7 @@ fn emit_shape(schema: &Schema, shape: &Shape) -> String {
             Primitive::Float64 { .. } => "double".to_owned(),
             Primitive::String { .. } => "String".to_owned(),
         },
-        Shape::Optional(inner) => format!("{}?", emit_shape(schema, inner)),
+        Shape::Nullable(inner) => format!("{}?", emit_shape(schema, inner)),
         Shape::List(inner) => format!("List<{}>", emit_shape(schema, inner)),
         Shape::Set(inner) => format!("Set<{}>", emit_shape(schema, inner)),
         Shape::Map(key, value) => format!(

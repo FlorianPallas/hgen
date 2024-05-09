@@ -112,7 +112,7 @@ fn emit_shape(schema: &Schema, shape: &Shape) -> String {
             Primitive::Float64 { .. } => "number".to_owned(),
             Primitive::String { .. } => "string".to_owned(),
         },
-        Shape::Optional(inner) => format!("({} | null)", emit_shape(schema, inner)),
+        Shape::Nullable(inner) => format!("({} | null)", emit_shape(schema, inner)),
         Shape::List(inner) => format!("({}[])", emit_shape(schema, inner)),
         Shape::Set(inner) => format!("Set<{}>", emit_shape(schema, inner)),
         Shape::Map(key, value) => format!(

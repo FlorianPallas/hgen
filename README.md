@@ -30,7 +30,7 @@ struct Todo {
   id: UUID,
   title: String,
   createdAt: Instant,
-  checkedAt?: Instant,
+  checkedAt: Instant?,
 }
 
 struct CreateTodo {
