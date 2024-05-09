@@ -99,20 +99,44 @@ fn emit_struct(schema: &Schema, def: &Struct) -> String {
     output.push_str("  });\n");
     output.push_str("\n");
 
-    // Emit serialization methods
-    output.push_str(&format!(
-        "  static void $hWrite(Writer writer,value:{}) => {{}}\n",
-        def.name
-    ));
-    output.push_str(&format!(
-        "  factory {}.$hRead(Reader reader) => {{}}\n",
-        def.name
-    ));
+    // emit fromJSON
+    output.push_str("  factory ");
+    output.push_str(&def.name);
+    output.push_str(".fromJSON(Map<String, dynamic> json) => ");
+    output.push_str(&def.name);
+    output.push_str("(\n");
+    output.push_str(
+        &def.fields
+            .iter()
+            .map(|(name, def)| {
+                format!(
+                    "    {}: json['{}'] as {}",
+                    name,
+                    name,
+                    emit_shape(schema, &def.shape)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",\n"),
+    );
+    output.push_str("\n  );\n");
+    output.push_str("\n");
 
-    // Emit reflection fields
-    output.push_str("  static Schema $hSchema = {};\n");
+    // emit toJSON
+    output.push_str("  Map<String, dynamic> toJSON() => <String, dynamic>{\n");
+    output.push_str(
+        &def.fields
+            .iter()
+            .map(|(name, _)| format!("    '{}': {}", name, name))
+            .collect::<Vec<_>>()
+            .join(",\n"),
+    );
+    output.push_str("\n  };\n");
+    output.push_str("\n");
 
     // TODO: emit utility methods
+    // toJSON
+    // fromJSON
     // toString
     // equals
     // hashCode
