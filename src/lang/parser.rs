@@ -105,25 +105,22 @@ impl Context {
 }
 
 fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
-    let mut objects = Vec::new();
-    let mut enums = Vec::new();
-    let mut aliases = Vec::new();
-    let mut externals = Vec::new();
+    let mut models = Vec::new();
 
     loop {
         if let Some(token) = context.peek() {
             match token {
                 Token::Keyword(Keyword::Struct) => {
-                    objects.push(parse_struct(context)?);
+                    models.push(Model::Struct(parse_struct(context)?));
                 }
                 Token::Keyword(Keyword::Enum) => {
-                    enums.push(parse_enum(context)?);
+                    models.push(Model::Enum(parse_enum(context)?));
                 }
                 Token::Keyword(Keyword::Alias) => {
-                    aliases.push(parse_alias(context)?);
+                    models.push(Model::Alias(parse_alias(context)?));
                 }
                 Token::Keyword(Keyword::Extern) => {
-                    externals.push(parse_extern_type(context)?);
+                    models.push(Model::External(parse_extern_type(context)?));
                 }
                 _ => return Err(ParseError::NoToken.into()),
             }
@@ -132,12 +129,7 @@ fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
         }
     }
 
-    Ok(Schema {
-        objects,
-        enums,
-        aliases,
-        externals,
-    })
+    Ok(Schema { models })
 }
 
 fn parse_extern_type(context: &mut Context) -> Result<External, ParseError> {

@@ -1,3 +1,5 @@
+/* UNSUPPORTED */
+/* UNSUPPORTED */
 pub struct Todo {
     pub id: UUID,
     pub title: String,

@@ -5,9 +5,12 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
 
     output.push_str(
         &schema
-            .objects
+            .models
             .iter()
-            .map(|model| emit_object(schema, model))
+            .map(|model| match model {
+                Model::Struct(inner) => emit_struct(schema, inner),
+                _ => "/* UNSUPPORTED */".to_owned(),
+            })
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -15,14 +18,14 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
     output
 }
 
-fn emit_object(schema: &Schema, object: &Struct) -> String {
+fn emit_struct(schema: &Schema, def: &Struct) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("class {} ", &object.name));
+    output.push_str(&format!("class {} ", &def.name));
     output.push_str("{\n");
 
     // Emit fields
-    object.fields.iter().for_each(|(name, field)| {
+    def.fields.iter().for_each(|(name, field)| {
         output.push_str(&format!(
             "  {} {};\n",
             emit_shape(schema, &field.shape),
@@ -32,8 +35,8 @@ fn emit_object(schema: &Schema, object: &Struct) -> String {
     output.push_str("\n");
 
     // Emit constructor
-    output.push_str(format!("  {}({{\n", &object.name).as_str());
-    object.fields.iter().for_each(|(name, field)| {
+    output.push_str(format!("  {}({{\n", &def.name).as_str());
+    def.fields.iter().for_each(|(name, field)| {
         let optional = match &field.shape {
             Shape::Nullable(_) => true,
             _ => false,
@@ -51,11 +54,11 @@ fn emit_object(schema: &Schema, object: &Struct) -> String {
     // Emit serialization methods
     output.push_str(&format!(
         "  static void $hWrite(Writer writer,value:{}) => {{}}\n",
-        object.name
+        def.name
     ));
     output.push_str(&format!(
         "  factory {}.$hRead(Reader reader) => {{}}\n",
-        object.name
+        def.name
     ));
 
     // Emit reflection fields
@@ -90,6 +93,6 @@ fn emit_shape(schema: &Schema, shape: &Shape) -> String {
             emit_shape(schema, key),
             emit_shape(schema, value)
         ),
-        Shape::Reference(name) => schema.resolve(&name).unwrap().name().to_owned(),
+        Shape::Reference(name) => schema.resolve(&name).unwrap().to_owned(),
     }
 }

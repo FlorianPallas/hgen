@@ -1,3 +1,5 @@
+/* UNSUPPORTED */
+/* UNSUPPORTED */
 class Todo {
   UUID id;
   String title;

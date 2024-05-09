@@ -3,52 +3,44 @@ use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Schema {
-    pub objects: Vec<Struct>,
-    pub enums: Vec<Enum>,
-    pub aliases: Vec<Alias>,
-    pub externals: Vec<External>,
+    pub models: Vec<Model>,
 }
 
 impl Schema {
-    pub fn resolve(&self, name: &str) -> Option<Reference> {
-        let struct_type = self.objects.iter().find(|o| o.name == name);
-        if let Some(target) = struct_type {
-            return Some(Reference::Struct(target));
-        }
-
-        let enum_type = self.enums.iter().find(|e| e.name == name);
-        if let Some(target) = enum_type {
-            return Some(Reference::Enum(target));
-        }
-
-        let alias_type = self.aliases.iter().find(|a| a.name == name);
-        if let Some(target) = alias_type {
-            return Some(Reference::Alias(target));
-        }
-
-        let external_type = self.externals.iter().find(|c| c.name == name);
-        if let Some(target) = external_type {
-            return Some(Reference::Extern(target));
-        }
-
-        return None;
+    pub fn resolve(&self, name: &str) -> Option<&str> {
+        self.models
+            .iter()
+            .find(|m| m.name() == name)
+            .map(|m| m.name())
     }
 }
 
-pub enum Reference<'a> {
-    Struct(&'a Struct),
-    Enum(&'a Enum),
-    Extern(&'a External),
-    Alias(&'a Alias),
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Model {
+    Struct(Struct),
+    Enum(Enum),
+    Alias(Alias),
+    External(External),
 }
 
-impl Reference<'_> {
+impl Model {
     pub fn name(&self) -> &str {
         match self {
-            Reference::Struct(o) => &o.name,
-            Reference::Enum(e) => &e.name,
-            Reference::Extern(c) => &c.name,
-            Reference::Alias(a) => &a.name,
+            Model::Struct(s) => &s.name,
+            Model::Enum(e) => &e.name,
+            Model::Alias(a) => &a.name,
+            Model::External(c) => &c.name,
+        }
+    }
+}
+
+impl ToString for Model {
+    fn to_string(&self) -> String {
+        match self {
+            Model::Struct(_) => "Struct".to_string(),
+            Model::Enum(_) => "Enum".to_string(),
+            Model::Alias(_) => "Alias".to_string(),
+            Model::External(_) => "External".to_string(),
         }
     }
 }
@@ -101,4 +93,17 @@ pub enum Primitive {
     Int64,
     Float32,
     Float64,
+}
+
+impl ToString for Primitive {
+    fn to_string(&self) -> String {
+        match self {
+            Primitive::String => "String".to_string(),
+            Primitive::Bool => "Bool".to_string(),
+            Primitive::Int32 => "Int32".to_string(),
+            Primitive::Int64 => "Int64".to_string(),
+            Primitive::Float32 => "Float32".to_string(),
+            Primitive::Float64 => "Float64".to_string(),
+        }
+    }
 }
