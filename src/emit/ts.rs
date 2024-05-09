@@ -80,9 +80,9 @@ fn reflect_struct(def: &Struct) -> String {
 fn reflect_enum(def: &Enum) -> String {
     format!(
         "{{type:'Enum',fields:{{{}}}}}",
-        def.fields
+        def.values
             .iter()
-            .map(|(name, _)| format!("'{}':''", name))
+            .map(|name| format!("'{}':''", name))
             .collect::<Vec<_>>()
             .join(",")
     )
@@ -120,7 +120,7 @@ fn emit_enum(_schema: &Schema, message: &Enum) -> String {
 
     output.push_str(&format!("export enum {} ", message.name));
     output.push_str("{\n");
-    message.fields.iter().for_each(|(name, _)| {
+    message.values.iter().for_each(|name| {
         output.push_str(&format!("  {} = '{}',\n", name, name));
     });
     output.push_str("}\n");

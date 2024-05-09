@@ -54,7 +54,7 @@ pub struct Struct {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Enum {
     pub name: String,
-    pub fields: Vec<(String, ())>,
+    pub values: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

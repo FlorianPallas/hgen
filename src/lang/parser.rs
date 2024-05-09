@@ -182,13 +182,16 @@ fn parse_enum(context: &mut Context) -> Result<Enum, ParseError> {
 
     loop {
         if context.pop_if(Token::CloseBrace).is_some() {
-            break Ok(Enum { name, fields });
+            break Ok(Enum {
+                name,
+                values: fields,
+            });
         }
 
         let name = context.pop_identifier()?;
         context.pop_exact(Token::Comma)?;
 
-        fields.push((name, ()));
+        fields.push(name);
     }
 }
 
