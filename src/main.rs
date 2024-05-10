@@ -21,10 +21,12 @@ struct Options {
 
 fn main() -> anyhow::Result<()> {
     let options = Options::parse();
+
+    let input = fs::read_to_string(options.input).unwrap();
+
     let started = Instant::now();
     println!("{} Parsing schema...", style("[1/2]").bold().dim());
 
-    let input = fs::read_to_string(options.input).unwrap();
     let output_path = Path::new(&options.output);
     let output_file_extension = output_path.extension().unwrap().to_str().unwrap();
     let output_file_stem = output_path.file_stem().unwrap().to_str().unwrap();
@@ -39,9 +41,10 @@ fn main() -> anyhow::Result<()> {
         style(format!("{:?}", strategy)).bold().bright()
     );
     let contents = strategy.emit_schema(output_file_stem, &schema);
+    println!("done in {}μs", started.elapsed().as_micros());
+
     fs::write(options.output, contents).unwrap();
 
-    println!("done in {}μs", started.elapsed().as_micros());
     Ok(())
 }
 
