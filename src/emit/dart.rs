@@ -50,19 +50,8 @@ fn emit_alias(schema: &Schema, alias: &Alias) -> String {
     format!(
         "typedef {} = {};\n",
         alias.name,
-        emit_type(schema, &alias.def)
+        emit_shape(schema, &alias.def.shape)
     )
-}
-
-fn emit_type(schema: &Schema, def: &Type) -> String {
-    let mut output = String::new();
-
-    output.push_str(&emit_shape(schema, &def.shape));
-    if !def.data.is_empty() {
-        output.push_str(" & ");
-    }
-
-    output
 }
 
 fn emit_model(schema: &Schema, model: &Model) -> String {
