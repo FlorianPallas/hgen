@@ -324,10 +324,9 @@ fn deserialize_shape(schema: &Schema, field_name: &str, shape: &Shape) -> String
     match shape {
         Shape::Primitive(_) => format!("{} as {}", field_name, emit_shape(schema, shape)),
         Shape::Nullable(inner) => format!(
-            "{} == null ? null : {} as {}",
+            "{} == null ? null : {}",
             field_name,
-            field_name,
-            emit_shape(schema, inner)
+            deserialize_shape(schema, field_name, inner),
         ),
         Shape::List(inner) => format!(
             "({} as List<dynamic>).map((e) => {}).toList()",

@@ -40,5 +40,5 @@ Map<String, dynamic> $CreateTodoToJson(CreateTodo instance) => <String, dynamic>
 
 /* Instant $InstantFromJson(Map<String, dynamic> json) => ? */
 UUID $UUIDFromJson(dynamic json) => json as String;
-Todo $TodoFromJson(Map<String,dynamic>json)=>Todo(id:$UUIDFromJson(json['id']),title:json['title'] as String,createdAt:$InstantFromJson(json['createdAt']),checkedAt:json['checkedAt'] == null ? null : json['checkedAt'] as Instant);
+Todo $TodoFromJson(Map<String,dynamic>json)=>Todo(id:$UUIDFromJson(json['id']),title:json['title'] as String,createdAt:$InstantFromJson(json['createdAt']),checkedAt:json['checkedAt'] == null ? null : $InstantFromJson(json['checkedAt']));
 CreateTodo $CreateTodoFromJson(Map<String,dynamic>json)=>CreateTodo(title:json['title'] as String);
