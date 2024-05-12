@@ -7,6 +7,5 @@ edition = "2021"
 anyhow = "1.0.83"
 clap = { version = "4.5.4", features = ["derive"] }
 console = "0.15.8"
-ron = "0.8.1"
 serde = { version = "1.0.201", features = ["derive"] }
 thiserror = "1.0.60"

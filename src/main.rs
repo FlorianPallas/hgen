@@ -50,7 +50,6 @@ fn main() -> anyhow::Result<()> {
 
 #[derive(Debug, Clone)]
 enum Strategy {
-    RON,
     JSON,
     Rust,
     TypeScript,
@@ -63,7 +62,6 @@ impl Strategy {
             "rs" => Strategy::Rust,
             "ts" => Strategy::TypeScript,
             "dart" => Strategy::Dart,
-            "ron" => Strategy::RON,
             "json" => Strategy::JSON,
             _ => return None,
         }
@@ -75,7 +73,6 @@ impl Strategy {
             Strategy::Rust => emit::rs::emit_schema(name, &schema),
             Strategy::TypeScript => emit::ts::emit_schema(name, &schema),
             Strategy::Dart => emit::dart::emit_schema(name, &schema),
-            Strategy::RON => emit::ron::emit_schema(name, &schema),
             Strategy::JSON => emit::json::emit_schema(name, &schema),
         }
     }
