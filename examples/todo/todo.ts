@@ -18,4 +18,4 @@ export class CreateTodo {
 }
 
 // prettier-ignore
-export const $metadata = {'Instant':{type:'External',inner:{type:'String'}},'UUID':{type:'Alias',inner:{type:'String'}},'Todo':{type:'Struct',fields:{'id':{type:'Reference',name:'UUID'},'title':{type:'String'},'createdAt':{type:'Reference',name:'Instant'},'checkedAt':{type:'Nullable',inner:{type:'Reference',name:'Instant'}}}},'CreateTodo':{type:'Struct',fields:{'title':{type:'String'}}}} as const;
+export const $schema = {models:{Instant:{type:'External',inner:{type:'String'}},UUID:{type:'Alias',inner:{type:'String'}},Todo:{type:'Struct',fields:{id:{type:'Reference',name:'UUID'},title:{type:'String'},createdAt:{type:'Reference',name:'Instant'},checkedAt:{type:'Nullable',inner:{type:'Reference',name:'Instant'}}}},CreateTodo:{type:'Struct',fields:{title:{type:'String'}}}},services:{}} as const;

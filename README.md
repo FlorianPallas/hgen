@@ -20,7 +20,7 @@
 hGEN defines its own schema language to describe APIs. The language is heavily inspired by languages like TypeScript, Kotlin and Dart, making it easy to learn and use. hGEN primitive types are based on Rust however, pushing for a more strict and safe API design.
 
 ```
-extern alias Instant;
+extern alias Instant = String;
 
 alias UUID = String & {
   type: uuid,
@@ -69,7 +69,8 @@ struct CreateTodo {
 
   - [x] `struct`
   - [x] `enum`
-  - [ ] Data Enums
+  - [ ] Data Enums / Unions
+  - [ ] Bitfield Enums
 
 - Collection Types:
 
