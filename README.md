@@ -5,6 +5,19 @@
 > [!WARNING]  
 > This project is in early development and not ready for production use.
 
+## Usage
+
+The hGEN CLI can be used to generate code for a given schema file.
+In this example, we generate TypeScript code from a schema file by using the `.ts` output file extension.
+
+```bash
+$ cargo install hgen
+$ hgen -i schema.hgen -o schema.ts
+[1/2] Parsing schema...
+[2/2] Emitting TypeScript code...
+done in 74μs
+```
+
 ## Philosophy
 
 - **Single Source of Truth**: Making sure that your API is consistent across all your services and clients is hard. With hGEN, you define and maintain your API in a single place, while fast code generation keeps overhead low.
