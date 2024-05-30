@@ -1,5 +1,7 @@
-/* UNSUPPORTED */
-/* UNSUPPORTED */
+use external::Instant;
+
+pub type UUID = String;
+
 pub struct Todo {
     pub id: UUID,
     pub title: String,
