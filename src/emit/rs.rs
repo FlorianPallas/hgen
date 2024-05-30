@@ -3,6 +3,8 @@ use crate::lang::schema::*;
 pub fn emit_schema(_name: &str, schema: &Schema) -> String {
     let mut output = String::new();
 
+    output.push_str("use serde::{Serialize, Deserialize};\n");
+
     output.push_str(
         &schema
             .models
@@ -27,6 +29,7 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
 fn emit_struct(def: &Struct) -> String {
     let mut output = String::new();
 
+    output.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
     output.push_str(&format!("pub struct {} ", &def.name));
     output.push_str("{\n");
     def.fields.iter().for_each(|(name, field)| {
@@ -44,6 +47,7 @@ fn emit_struct(def: &Struct) -> String {
 fn emit_enum(def: &Enum) -> String {
     let mut output = String::new();
 
+    output.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
     output.push_str(&format!("pub enum {} ", &def.name));
     output.push_str("{\n");
     def.values.iter().for_each(|value| {
