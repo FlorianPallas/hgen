@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2024-05-30
+
+### 🚀 Features
+
+- *(rust)* Add support for enums, aliases and externals
+- *(rust)* Emit derive annotations for debug, clone and serde serialization
+
+### ⚙️ Miscellaneous Tasks
+
+- Add changelog
+
 ## [0.2.0] - 2024-05-29
 
 ### 🚀 Features
