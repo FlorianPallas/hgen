@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::lang::schema::*;
 
 pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
@@ -20,12 +18,115 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
     );
     output.push_str("\n");
 
+    // emit consumers
+    output.push_str(
+        &schema
+            .services
+            .iter()
+            .map(emit_consumer)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    output.push_str("\n");
+
+    // emit providers
+    output.push_str(
+        &schema
+            .services
+            .iter()
+            .map(emit_provider)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    output.push_str("\n");
+
     // emit metadata
     output.push_str("// prettier-ignore\n");
     output.push_str(&format!(
         "export const $schema = {}",
         reflect_schema(schema)
     ));
+
+    output
+}
+
+fn emit_provider(def: &Service) -> String {
+    let mut output = String::new();
+
+    output.push_str(&format!("export interface {}Provider ", def.name));
+    output.push_str("{\n");
+    output.push_str(
+        &def.methods
+            .iter()
+            .map(emit_provider_method)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    output.push_str("}\n");
+
+    output
+}
+
+fn emit_provider_method(def: &Method) -> String {
+    let mut output = String::new();
+
+    output.push_str(&format!(
+        "  {}({}): Promise<{}>;\n",
+        def.name,
+        def.inputs
+            .iter()
+            .map(|(name, def)| format!("{}: {}", name, emit_shape(&def.shape)))
+            .collect::<Vec<_>>()
+            .join(", "),
+        emit_shape(&def.output.shape)
+    ));
+
+    output
+}
+
+fn emit_consumer(def: &Service) -> String {
+    let mut output = String::new();
+
+    output.push_str(&format!("export class {}Consumer ", def.name));
+    output.push_str("{\n");
+    output.push_str(
+        "  constructor(protected request: (method: string, inputs: any) => Promise<any>) {}\n\n",
+    );
+    output.push_str(
+        &def.methods
+            .iter()
+            .map(emit_consumer_method)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    output.push_str("}\n");
+
+    output
+}
+
+fn emit_consumer_method(def: &Method) -> String {
+    let mut output = String::new();
+
+    output.push_str(&format!(
+        "  {}({}): Promise<{}> {{\n",
+        def.name,
+        def.inputs
+            .iter()
+            .map(|(name, def)| format!("{}: {}", name, emit_shape(&def.shape)))
+            .collect::<Vec<_>>()
+            .join(", "),
+        emit_shape(&def.output.shape)
+    ));
+    output.push_str(&format!(
+        "    return this.request(\"{}\", {{ {} }});\n",
+        def.name,
+        def.inputs
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+    output.push_str("  }\n");
 
     output
 }
@@ -180,7 +281,11 @@ fn reflect_shape(shape: &Shape) -> String {
 }
 
 fn emit_alias(alias: &Alias) -> String {
-    format!("export type {} = {};\n", alias.name, emit_type(&alias.def))
+    format!(
+        "export type {} = {};\n",
+        alias.name,
+        emit_shape(&alias.def.shape)
+    )
 }
 
 fn emit_enum(message: &Enum) -> String {
@@ -202,33 +307,11 @@ fn emit_struct(message: &Struct) -> String {
     output.push_str(&format!("export class {} ", message.name));
     output.push_str("{\n");
     message.fields.iter().for_each(|(name, def)| {
-        output.push_str(&format!("  {}: {};\n", name, emit_type(&def)));
+        output.push_str(&format!("  {}: {};\n", name, emit_shape(&def.shape)));
     });
     output.push_str("}\n");
 
     output
-}
-
-fn emit_type(def: &Type) -> String {
-    let mut output = String::new();
-
-    output.push_str(&emit_shape(&def.shape));
-    if !def.data.is_empty() {
-        output.push_str(" & ");
-        output.push_str(&emit_metadata(&def.data));
-    }
-
-    output
-}
-
-fn emit_metadata(data: &HashMap<String, String>) -> String {
-    format!(
-        "{{\n{}\n}}",
-        data.iter()
-            .map(|(k, v)| format!("  {}: '{}'", k, v))
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
 }
 
 fn emit_shape(shape: &Shape) -> String {

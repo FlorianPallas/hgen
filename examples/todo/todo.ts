@@ -2,9 +2,7 @@
 
 import { Instant } from './todo.external';
 
-export type UUID = string & {
-  type: 'uuid'
-};
+export type UUID = string;
 
 export class Todo {
   id: UUID;
@@ -21,5 +19,41 @@ export class UpdateTodoParams {
   title: (string | null);
 }
 
+export class TodoServiceConsumer {
+  constructor(protected request: (method: string, inputs: any) => Promise<any>) {}
+
+  create(params: CreateTodoParams): Promise<Todo> {
+    return this.request("create", { params });
+  }
+
+  get(id: UUID): Promise<Todo> {
+    return this.request("get", { id });
+  }
+
+  getAll(): Promise<(Todo[])> {
+    return this.request("getAll", {  });
+  }
+
+  update(id: UUID, params: UpdateTodoParams): Promise<Todo> {
+    return this.request("update", { id, params });
+  }
+
+  delete(id: UUID): Promise<void> {
+    return this.request("delete", { id });
+  }
+}
+
+export interface TodoServiceProvider {
+  create(params: CreateTodoParams): Promise<Todo>;
+
+  get(id: UUID): Promise<Todo>;
+
+  getAll(): Promise<(Todo[])>;
+
+  update(id: UUID, params: UpdateTodoParams): Promise<Todo>;
+
+  delete(id: UUID): Promise<void>;
+}
+
 // prettier-ignore
-export const $schema = {models:{Instant:{type:'External',inner:{type:'String'}},UUID:{type:'Alias',inner:{type:'String'}},Todo:{type:'Struct',fields:{id:{type:'Reference',name:'UUID'},title:{type:'String'},createdAt:{type:'Reference',name:'Instant'},checkedAt:{type:'Nullable',inner:{type:'Reference',name:'Instant'}}}},CreateTodoParams:{type:'Struct',fields:{title:{type:'String'}}},UpdateTodoParams:{type:'Struct',fields:{title:{type:'Nullable',inner:{type:'String'}}}}},services:{TodoService:{type:'Service',methods:{create:{inputs:{params:{type:'Reference',name:'CreateTodoParams'}},output:{type:'Reference',name:'Todo'}},get:{inputs:{id:{type:'Reference',name:'UUID'}},output:{type:'Reference',name:'Todo'}},getAll:{inputs:{},output:{type:'List',inner:{type:'Reference',name:'Todo'}}},update:{inputs:{id:{type:'Reference',name:'UUID'},params:{type:'Reference',name:'UpdateTodoParams'}},output:{type:'Reference',name:'Todo'}},delete:{inputs:{id:{type:'Reference',name:'UUID'}},output:{type:'Reference',name:'Unit'}}}}}} as const;
+export const $schema = {models:{Instant:{type:'External',inner:{type:'String'}},UUID:{type:'Alias',inner:{type:'String'}},Todo:{type:'Struct',fields:{id:{type:'Reference',name:'UUID'},title:{type:'String'},createdAt:{type:'Reference',name:'Instant'},checkedAt:{type:'Nullable',inner:{type:'Reference',name:'Instant'}}}},CreateTodoParams:{type:'Struct',fields:{title:{type:'String'}}},UpdateTodoParams:{type:'Struct',fields:{title:{type:'Nullable',inner:{type:'String'}}}}},services:{TodoService:{type:'Service',methods:{create:{inputs:{params:{type:'Reference',name:'CreateTodoParams'}},output:{type:'Reference',name:'Todo'}},get:{inputs:{id:{type:'Reference',name:'UUID'}},output:{type:'Reference',name:'Todo'}},getAll:{inputs:{},output:{type:'List',inner:{type:'Reference',name:'Todo'}}},update:{inputs:{id:{type:'Reference',name:'UUID'},params:{type:'Reference',name:'UpdateTodoParams'}},output:{type:'Reference',name:'Todo'}},delete:{inputs:{id:{type:'Reference',name:'UUID'}},output:{type:'Unit'}}}}}} as const;
