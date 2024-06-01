@@ -13,9 +13,13 @@ export class Todo {
   checkedAt: (Instant | null);
 }
 
-export class CreateTodo {
+export class CreateTodoParams {
   title: string;
 }
 
+export class UpdateTodoParams {
+  title: (string | null);
+}
+
 // prettier-ignore
-export const $schema = {models:{Instant:{type:'External',inner:{type:'String'}},UUID:{type:'Alias',inner:{type:'String'}},Todo:{type:'Struct',fields:{id:{type:'Reference',name:'UUID'},title:{type:'String'},createdAt:{type:'Reference',name:'Instant'},checkedAt:{type:'Nullable',inner:{type:'Reference',name:'Instant'}}}},CreateTodo:{type:'Struct',fields:{title:{type:'String'}}}},services:{}} as const;
+export const $schema = {models:{Instant:{type:'External',inner:{type:'String'}},UUID:{type:'Alias',inner:{type:'String'}},Todo:{type:'Struct',fields:{id:{type:'Reference',name:'UUID'},title:{type:'String'},createdAt:{type:'Reference',name:'Instant'},checkedAt:{type:'Nullable',inner:{type:'Reference',name:'Instant'}}}},CreateTodoParams:{type:'Struct',fields:{title:{type:'String'}}},UpdateTodoParams:{type:'Struct',fields:{title:{type:'Nullable',inner:{type:'String'}}}}},services:{TodoService:{type:'Service',methods:{create:{inputs:{params:{type:'Reference',name:'CreateTodoParams'}},output:{type:'Reference',name:'Todo'}},get:{inputs:{id:{type:'Reference',name:'UUID'}},output:{type:'Reference',name:'Todo'}},getAll:{inputs:{},output:{type:'List',inner:{type:'Reference',name:'Todo'}}},update:{inputs:{id:{type:'Reference',name:'UUID'},params:{type:'Reference',name:'UpdateTodoParams'}},output:{type:'Reference',name:'Todo'}},delete:{inputs:{id:{type:'Reference',name:'UUID'}},output:{type:'Reference',name:'Unit'}}}}}} as const;

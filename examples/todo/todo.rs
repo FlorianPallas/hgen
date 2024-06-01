@@ -12,6 +12,11 @@ pub struct Todo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateTodo {
+pub struct CreateTodoParams {
     pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateTodoParams {
+    pub title: Option<String>,
 }
