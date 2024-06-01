@@ -14,7 +14,7 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
         &schema
             .models
             .iter()
-            .map(|m| emit_model(schema, m))
+            .map(emit_model)
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -25,7 +25,7 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
         &schema
             .models
             .iter()
-            .map(|m| serialize_model(schema, m))
+            .map(serialize_model)
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -37,7 +37,7 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
         &schema
             .models
             .iter()
-            .map(|m| deserialize_model(schema, m))
+            .map(deserialize_model)
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -46,19 +46,20 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
     output
 }
 
-fn emit_alias(schema: &Schema, alias: &Alias) -> String {
+fn emit_alias(alias: &Alias) -> String {
     format!(
         "typedef {} = {};\n",
         alias.name,
-        emit_shape(schema, &alias.def.shape)
+        emit_shape(&alias.def.shape)
     )
 }
 
-fn emit_model(schema: &Schema, model: &Model) -> String {
+fn emit_model(model: &Model) -> String {
     match model {
-        Model::Struct(s) => emit_struct(schema, s),
+        Model::Struct(s) => emit_struct(s),
         Model::Enum(e) => emit_enum(e),
-        Model::Alias(a) => emit_alias(schema, a),
+        Model::Alias(a) => emit_alias(a),
+        // no need to emit external models, they are already imported
         Model::External(_) => "".to_owned(),
     }
 }
@@ -97,7 +98,7 @@ fn emit_enum(def: &Enum) -> String {
     output
 }
 
-fn emit_struct(schema: &Schema, def: &Struct) -> String {
+fn emit_struct(def: &Struct) -> String {
     let mut output = String::new();
 
     output.push_str(&format!("class {} ", &def.name));
@@ -105,11 +106,7 @@ fn emit_struct(schema: &Schema, def: &Struct) -> String {
 
     // Emit fields
     def.fields.iter().for_each(|(name, field)| {
-        output.push_str(&format!(
-            "  {} {};\n",
-            emit_shape(schema, &field.shape),
-            name
-        ));
+        output.push_str(&format!("  {} {};\n", emit_shape(&field.shape), name));
     });
     output.push_str("\n");
 
@@ -147,7 +144,7 @@ fn emit_struct(schema: &Schema, def: &Struct) -> String {
     output
 }
 
-fn emit_shape(schema: &Schema, shape: &Shape) -> String {
+fn emit_shape(shape: &Shape) -> String {
     match shape {
         Shape::Primitive(primitive) => match primitive {
             Primitive::Bool { .. } => "bool".to_owned(),
@@ -157,23 +154,19 @@ fn emit_shape(schema: &Schema, shape: &Shape) -> String {
             Primitive::Float64 { .. } => "double".to_owned(),
             Primitive::String { .. } => "String".to_owned(),
         },
-        Shape::Nullable(inner) => format!("{}?", emit_shape(schema, inner)),
-        Shape::List(inner) => format!("List<{}>", emit_shape(schema, inner)),
-        Shape::Set(inner) => format!("Set<{}>", emit_shape(schema, inner)),
-        Shape::Map(key, value) => format!(
-            "Map<{}, {}>",
-            emit_shape(schema, key),
-            emit_shape(schema, value)
-        ),
-        Shape::Reference(name) => schema.resolve(&name).unwrap().to_owned(),
+        Shape::Nullable(inner) => format!("{}?", emit_shape(inner)),
+        Shape::List(inner) => format!("List<{}>", emit_shape(inner)),
+        Shape::Set(inner) => format!("Set<{}>", emit_shape(inner)),
+        Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),
+        Shape::Reference(name) => name.to_owned(),
     }
 }
 
-fn serialize_model(schema: &Schema, model: &Model) -> String {
+fn serialize_model(model: &Model) -> String {
     match model {
-        Model::Struct(inner) => serialize_struct(schema, inner),
+        Model::Struct(inner) => serialize_struct(inner),
         Model::Enum(inner) => serialize_enum(inner),
-        Model::Alias(inner) => serialize_alias(schema, inner),
+        Model::Alias(inner) => serialize_alias(inner),
         Model::External(inner) => format!(
             "/* Map<String, dynamic> ${}ToJson({} instance) => ? */",
             inner.name, inner.name
@@ -181,11 +174,11 @@ fn serialize_model(schema: &Schema, model: &Model) -> String {
     }
 }
 
-fn deserialize_model(schema: &Schema, model: &Model) -> String {
+fn deserialize_model(model: &Model) -> String {
     match model {
-        Model::Struct(inner) => deserialize_struct(schema, inner),
+        Model::Struct(inner) => deserialize_struct(inner),
         Model::Enum(inner) => deserialize_enum(inner),
-        Model::Alias(inner) => deserialize_alias(schema, inner),
+        Model::Alias(inner) => deserialize_alias(inner),
         Model::External(inner) => format!(
             "/* {} ${}FromJson(Map<String, dynamic> json) => ? */",
             inner.name, inner.name
@@ -193,7 +186,7 @@ fn deserialize_model(schema: &Schema, model: &Model) -> String {
     }
 }
 
-fn serialize_struct(schema: &Schema, def: &Struct) -> String {
+fn serialize_struct(def: &Struct) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
@@ -207,7 +200,7 @@ fn serialize_struct(schema: &Schema, def: &Struct) -> String {
                 format!(
                     "'{}':{}",
                     name,
-                    serialize_shape(schema, &format!("instance.{}", name), &field.shape)
+                    serialize_shape(&format!("instance.{}", name), &field.shape)
                 )
             })
             .collect::<Vec<_>>()
@@ -259,25 +252,25 @@ fn deserialize_enum(def: &Enum) -> String {
     output
 }
 
-fn serialize_alias(schema: &Schema, alias: &Alias) -> String {
+fn serialize_alias(alias: &Alias) -> String {
     format!(
         "dynamic ${}ToJson({} instance) => {};",
         alias.name,
         alias.name,
-        serialize_shape(schema, "instance", &alias.def.shape)
+        serialize_shape("instance", &alias.def.shape)
     )
 }
 
-fn deserialize_alias(schema: &Schema, alias: &Alias) -> String {
+fn deserialize_alias(alias: &Alias) -> String {
     format!(
         "{} ${}FromJson(dynamic json) => {};",
         alias.name,
         alias.name,
-        deserialize_shape(schema, "json", &alias.def.shape)
+        deserialize_shape("json", &alias.def.shape)
     )
 }
 
-fn deserialize_struct(schema: &Schema, def: &Struct) -> String {
+fn deserialize_struct(def: &Struct) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
@@ -291,7 +284,7 @@ fn deserialize_struct(schema: &Schema, def: &Struct) -> String {
                 format!(
                     "{}:{}",
                     name,
-                    deserialize_shape(schema, &format!("json['{}']", name), &field.shape)
+                    deserialize_shape(&format!("json['{}']", name), &field.shape)
                 )
             })
             .collect::<Vec<_>>()
@@ -302,52 +295,44 @@ fn deserialize_struct(schema: &Schema, def: &Struct) -> String {
     output
 }
 
-fn serialize_shape(schema: &Schema, name: &str, shape: &Shape) -> String {
+fn serialize_shape(name: &str, shape: &Shape) -> String {
     match shape {
         Shape::Nullable(inner) => format!(
             "{} == null ? null : {}",
             name,
-            serialize_shape(
-                schema,
-                &format!("{} as {}", name, emit_shape(schema, inner)),
-                inner
-            ),
+            serialize_shape(&format!("{} as {}", name, emit_shape(inner)), inner),
         ),
         Shape::Reference(type_name) => {
-            format!("${}ToJson({})", schema.resolve(&type_name).unwrap(), name)
+            format!("${}ToJson({})", type_name, name)
         }
         _ => format!("{}", name),
     }
 }
 
-fn deserialize_shape(schema: &Schema, field_name: &str, shape: &Shape) -> String {
+fn deserialize_shape(field_name: &str, shape: &Shape) -> String {
     match shape {
-        Shape::Primitive(_) => format!("{} as {}", field_name, emit_shape(schema, shape)),
+        Shape::Primitive(_) => format!("{} as {}", field_name, emit_shape(shape)),
         Shape::Nullable(inner) => format!(
             "{} == null ? null : {}",
             field_name,
-            deserialize_shape(schema, field_name, inner),
+            deserialize_shape(field_name, inner),
         ),
         Shape::List(inner) => format!(
             "({} as List<dynamic>).map((e) => {}).toList()",
             field_name,
-            deserialize_shape(schema, "e", inner)
+            deserialize_shape("e", inner)
         ),
         Shape::Set(inner) => format!(
             "({} as List<dynamic>).map((e) => {}).toSet()",
             field_name,
-            deserialize_shape(schema, "e", inner)
+            deserialize_shape("e", inner)
         ),
         Shape::Map(key, value) => format!(
             "({} as Map<String,dynamic>).map((k,v) => MapEntry({},{}))",
             field_name,
-            deserialize_shape(schema, "k", key),
-            deserialize_shape(schema, "v", value),
+            deserialize_shape("k", key),
+            deserialize_shape("v", value),
         ),
-        Shape::Reference(name) => format!(
-            "${}FromJson({})",
-            schema.resolve(&name).unwrap(),
-            field_name
-        ),
+        Shape::Reference(name) => format!("${}FromJson({})", name, field_name),
     }
 }

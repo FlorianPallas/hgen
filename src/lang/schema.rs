@@ -7,15 +7,6 @@ pub struct Schema {
     pub services: Vec<Service>,
 }
 
-impl Schema {
-    pub fn resolve(&self, name: &str) -> Option<&str> {
-        self.models
-            .iter()
-            .find(|m| m.name() == name)
-            .map(|m| m.name())
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Service {
     pub name: String,

@@ -9,21 +9,25 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
         &schema
             .models
             .iter()
-            .map(|model| match model {
-                Model::Struct(inner) => emit_struct(inner),
-                Model::Enum(inner) => emit_enum(inner),
-                Model::Alias(inner) => format!(
-                    "pub type {} = {};\n",
-                    inner.name,
-                    emit_shape(&inner.def.shape)
-                ),
-                Model::External(inner) => format!("use external::{};\n", inner.name),
-            })
+            .map(emit_model)
             .collect::<Vec<_>>()
             .join("\n"),
     );
 
     output
+}
+
+fn emit_model(def: &Model) -> String {
+    match def {
+        Model::Struct(inner) => emit_struct(inner),
+        Model::Enum(inner) => emit_enum(inner),
+        Model::Alias(inner) => format!(
+            "pub type {} = {};\n",
+            inner.name,
+            emit_shape(&inner.def.shape)
+        ),
+        Model::External(inner) => format!("use external::{};\n", inner.name),
+    }
 }
 
 fn emit_struct(def: &Struct) -> String {
