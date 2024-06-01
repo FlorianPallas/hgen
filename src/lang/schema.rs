@@ -92,6 +92,7 @@ pub enum Shape {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Primitive {
+    Unit,
     String,
     Bool,
     Int32,
@@ -103,6 +104,7 @@ pub enum Primitive {
 impl ToString for Primitive {
     fn to_string(&self) -> String {
         match self {
+            Primitive::Unit => "Unit".to_string(),
             Primitive::String => "String".to_string(),
             Primitive::Bool => "Bool".to_string(),
             Primitive::Int32 => "Int32".to_string(),

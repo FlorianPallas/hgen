@@ -65,6 +65,7 @@ fn emit_enum(def: &Enum) -> String {
 fn emit_shape(def: &Shape) -> String {
     match def {
         Shape::Primitive(primitive) => match primitive {
+            Primitive::Unit { .. } => "()".to_owned(),
             Primitive::Bool { .. } => "bool".to_owned(),
             Primitive::Int32 { .. } => "i32".to_owned(),
             Primitive::Int64 { .. } => "i64".to_owned(),

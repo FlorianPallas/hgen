@@ -147,6 +147,7 @@ fn emit_struct(def: &Struct) -> String {
 fn emit_shape(shape: &Shape) -> String {
     match shape {
         Shape::Primitive(primitive) => match primitive {
+            Primitive::Unit { .. } => "void".to_owned(),
             Primitive::Bool { .. } => "bool".to_owned(),
             Primitive::Int32 { .. } => "int".to_owned(),
             Primitive::Int64 { .. } => "int".to_owned(),

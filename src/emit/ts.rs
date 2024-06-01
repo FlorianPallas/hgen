@@ -234,6 +234,7 @@ fn emit_metadata(data: &HashMap<String, String>) -> String {
 fn emit_shape(shape: &Shape) -> String {
     match shape {
         Shape::Primitive(primitive) => match primitive {
+            Primitive::Unit { .. } => "void".to_owned(),
             Primitive::Bool { .. } => "boolean".to_owned(),
             Primitive::Int32 { .. } => "number".to_owned(),
             Primitive::Int64 { .. } => "number".to_owned(),

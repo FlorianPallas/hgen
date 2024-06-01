@@ -103,6 +103,7 @@ fn emit_shape(shape: &Shape) -> String {
         Shape::Primitive(primitive) => format!(
             "{{\"type\":\"{}\"}}",
             match primitive {
+                Primitive::Unit { .. } => "Unit",
                 Primitive::Bool { .. } => "Bool",
                 Primitive::Int32 { .. } => "Int32",
                 Primitive::Int64 { .. } => "Int64",
