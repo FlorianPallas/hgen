@@ -90,6 +90,19 @@ pub enum Shape {
     Reference(String),
 }
 
+impl ToString for Shape {
+    fn to_string(&self) -> String {
+        match self {
+            Shape::Primitive(inner) => format!("Primitive({})", inner.to_string()),
+            Shape::Nullable(inner) => format!("Nullable({})", inner.to_string()),
+            Shape::List(inner) => format!("List({})", inner.to_string()),
+            Shape::Set(inner) => format!("Set({})", inner.to_string()),
+            Shape::Map(key, value) => format!("Map({}, {})", key.to_string(), value.to_string()),
+            Shape::Reference(inner) => format!("Reference({})", inner),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Primitive {
     Unit,
@@ -111,6 +124,23 @@ impl ToString for Primitive {
             Primitive::Int64 => "Int64".to_string(),
             Primitive::Float32 => "Float32".to_string(),
             Primitive::Float64 => "Float64".to_string(),
+        }
+    }
+}
+
+impl TryFrom<&str> for Primitive {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Unit" => Ok(Primitive::Unit),
+            "String" => Ok(Primitive::String),
+            "Bool" => Ok(Primitive::Bool),
+            "Int32" => Ok(Primitive::Int32),
+            "Int64" => Ok(Primitive::Int64),
+            "Float32" => Ok(Primitive::Float32),
+            "Float64" => Ok(Primitive::Float64),
+            _ => Err("Invalid primitive"),
         }
     }
 }

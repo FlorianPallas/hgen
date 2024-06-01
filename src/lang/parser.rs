@@ -288,7 +288,7 @@ fn parse_type(context: &mut Context) -> Result<Type, ParseError> {
 }
 
 fn parse_shape(name: String, args: Vec<String>) -> Shape {
-    if let Some(primitive) = parse_primitive(&name) {
+    if let Ok(primitive) = Primitive::try_from(name.as_str()) {
         return Shape::Primitive(primitive);
     }
 
@@ -320,19 +320,6 @@ fn parse_shape(name: String, args: Vec<String>) -> Shape {
                 Box::new(parse_shape(value.to_owned(), vec![])),
             )
         }
-        _ => Shape::Reference(name.to_owned()),
+        _ => Shape::Reference(name),
     }
-}
-
-fn parse_primitive(name: &str) -> Option<Primitive> {
-    match name {
-        "String" => Primitive::String,
-        "Bool" => Primitive::Bool,
-        "Int32" => Primitive::Int32,
-        "Int64" => Primitive::Int64,
-        "Float32" => Primitive::Float32,
-        "Float64" => Primitive::Float64,
-        _ => return None,
-    }
-    .into()
 }
