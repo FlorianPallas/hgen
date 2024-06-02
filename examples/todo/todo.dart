@@ -2,6 +2,9 @@
 
 import 'todo.external.dart';
 
+
+typedef UUID = String;
+
 class Todo {
   UUID id;
   String title;
@@ -19,18 +22,6 @@ class Todo {
   factory Todo.fromJson(Map<String, dynamic> json) => $TodoFromJson(json);
 }
 
-class UpdateTodoParams {
-  String? title;
-
-  UpdateTodoParams({
-    this.title,
-  });
-
-  Map<String, dynamic> toJson() => $UpdateTodoParamsToJson(this);
-  factory UpdateTodoParams.fromJson(Map<String, dynamic> json) => $UpdateTodoParamsFromJson(json);
-}
-
-
 class CreateTodoParams {
   String title;
 
@@ -42,16 +33,25 @@ class CreateTodoParams {
   factory CreateTodoParams.fromJson(Map<String, dynamic> json) => $CreateTodoParamsFromJson(json);
 }
 
-typedef UUID = String;
+class UpdateTodoParams {
+  String? title;
 
-Map<String, dynamic> $TodoToJson(Todo instance) => <String, dynamic>{'id':$UUIDToJson(instance.id),'title':instance.title,'createdAt':$InstantToJson(instance.createdAt),'checkedAt':instance.checkedAt == null ? null : $InstantToJson(instance.checkedAt as Instant)};
-Map<String, dynamic> $UpdateTodoParamsToJson(UpdateTodoParams instance) => <String, dynamic>{'title':instance.title == null ? null : instance.title as String};
+  UpdateTodoParams({
+    this.title,
+  });
+
+  Map<String, dynamic> toJson() => $UpdateTodoParamsToJson(this);
+  factory UpdateTodoParams.fromJson(Map<String, dynamic> json) => $UpdateTodoParamsFromJson(json);
+}
+
 /* Map<String, dynamic> $InstantToJson(Instant instance) => ? */
-Map<String, dynamic> $CreateTodoParamsToJson(CreateTodoParams instance) => <String, dynamic>{'title':instance.title};
 dynamic $UUIDToJson(UUID instance) => instance;
+Map<String, dynamic> $TodoToJson(Todo instance) => <String, dynamic>{'id':$UUIDToJson(instance.id),'title':instance.title,'createdAt':$InstantToJson(instance.createdAt),'checkedAt':instance.checkedAt == null ? null : $InstantToJson(instance.checkedAt as Instant)};
+Map<String, dynamic> $CreateTodoParamsToJson(CreateTodoParams instance) => <String, dynamic>{'title':instance.title};
+Map<String, dynamic> $UpdateTodoParamsToJson(UpdateTodoParams instance) => <String, dynamic>{'title':instance.title == null ? null : instance.title as String};
 
-Todo $TodoFromJson(Map<String,dynamic>json)=>Todo(id:$UUIDFromJson(json['id']),title:json['title'] as String,createdAt:$InstantFromJson(json['createdAt']),checkedAt:json['checkedAt'] == null ? null : $InstantFromJson(json['checkedAt']));
-UpdateTodoParams $UpdateTodoParamsFromJson(Map<String,dynamic>json)=>UpdateTodoParams(title:json['title'] == null ? null : json['title'] as String);
 /* Instant $InstantFromJson(Map<String, dynamic> json) => ? */
-CreateTodoParams $CreateTodoParamsFromJson(Map<String,dynamic>json)=>CreateTodoParams(title:json['title'] as String);
 UUID $UUIDFromJson(dynamic json) => json as String;
+Todo $TodoFromJson(Map<String,dynamic>json)=>Todo(id:$UUIDFromJson(json['id']),title:json['title'] as String,createdAt:$InstantFromJson(json['createdAt']),checkedAt:json['checkedAt'] == null ? null : $InstantFromJson(json['checkedAt']));
+CreateTodoParams $CreateTodoParamsFromJson(Map<String,dynamic>json)=>CreateTodoParams(title:json['title'] as String);
+UpdateTodoParams $UpdateTodoParamsFromJson(Map<String,dynamic>json)=>UpdateTodoParams(title:json['title'] == null ? null : json['title'] as String);

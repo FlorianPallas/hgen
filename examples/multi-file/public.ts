@@ -28,4 +28,4 @@ export interface PostServiceProvider {
 }
 
 // prettier-ignore
-export const $schema = {models:{Post:{type:'Struct',fields:{slug:{type:'String'},title:{type:'String'},body:{type:'String'},author:{type:'String'}}}},services:{PostService:{type:'Service',methods:{find:{inputs:{},output:{type:'List',inner:{type:'Reference',name:'Post'}}},findOne:{inputs:{slug:{type:'String'}},output:{type:'Nullable',inner:{type:'Reference',name:'Post'}}}}}}} as const;
+export const $schema = {models:{Post:{type:'struct',fields:{slug:{type:'string',data:{}},title:{type:'string',data:{}},body:{type:'string',data:{}},author:{type:'string',data:{}}}}},services:{PostService:{type:'service',methods:{find:{inputs:{},output:{type:'list',inner:{type:'reference',name:'Post'},data:{}}},findOne:{inputs:{slug:{type:'string',data:{}}},output:{type:'nullable',inner:{type:'reference',name:'Post'},data:{}}}}}}} as const;

@@ -3,6 +3,7 @@ use std::{collections::HashMap, iter::Peekable, vec::IntoIter};
 use thiserror::Error;
 
 use super::lexer::{Keyword, Token};
+use super::map::OrderedHashMap;
 use super::schema::*;
 
 #[derive(Error, Debug)]
@@ -106,8 +107,8 @@ impl Context {
 
 fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
     let mut imports = Vec::new();
-    let mut models: HashMap<String, Model> = HashMap::new();
-    let mut services = HashMap::new();
+    let mut models = OrderedHashMap::new();
+    let mut services = OrderedHashMap::new();
 
     loop {
         if let Some(token) = context.peek() {

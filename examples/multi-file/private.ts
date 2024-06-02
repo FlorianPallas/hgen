@@ -28,4 +28,4 @@ export interface PrivatePostServiceProvider {
 }
 
 // prettier-ignore
-export const $schema = {models:{Post:{type:'Struct',fields:{slug:{type:'String'},title:{type:'String'},body:{type:'String'},author:{type:'String'}}}},services:{PrivatePostService:{type:'Service',methods:{create:{inputs:{slug:{type:'String'},title:{type:'String'},body:{type:'String'}},output:{type:'Reference',name:'Post'}},delete:{inputs:{slug:{type:'String'}},output:{type:'Unit'}}}}}} as const;
+export const $schema = {models:{Post:{type:'struct',fields:{slug:{type:'string',data:{}},title:{type:'string',data:{}},body:{type:'string',data:{}},author:{type:'string',data:{}}}}},services:{PrivatePostService:{type:'service',methods:{create:{inputs:{slug:{type:'string',data:{}},title:{type:'string',data:{}},body:{type:'string',data:{}}},output:{type:'reference',name:'Post',data:{}}},delete:{inputs:{slug:{type:'string',data:{}}},output:{type:'unit',data:{}}}}}}} as const;

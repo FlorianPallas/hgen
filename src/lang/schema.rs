@@ -4,11 +4,13 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use super::map::OrderedHashMap;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Schema {
     pub imports: Vec<String>,
-    pub models: HashMap<String, Model>,
-    pub services: HashMap<String, Service>,
+    pub models: OrderedHashMap<String, Model>,
+    pub services: OrderedHashMap<String, Service>,
 }
 
 impl Default for Schema {
