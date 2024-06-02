@@ -56,11 +56,12 @@ pub enum Model {
 impl ToString for Model {
     fn to_string(&self) -> String {
         match self {
-            Model::Struct(_) => "Struct".to_string(),
-            Model::Enum(_) => "Enum".to_string(),
-            Model::Alias(_) => "Alias".to_string(),
-            Model::External(_) => "External".to_string(),
+            Model::Struct(_) => "Struct",
+            Model::Enum(_) => "Enum",
+            Model::Alias(_) => "Alias",
+            Model::External(_) => "External",
         }
+        .to_owned()
     }
 }
 
@@ -180,14 +181,15 @@ pub enum Primitive {
 impl ToString for Primitive {
     fn to_string(&self) -> String {
         match self {
-            Primitive::Unit => "Unit".to_string(),
-            Primitive::String => "String".to_string(),
-            Primitive::Bool => "Bool".to_string(),
-            Primitive::Int32 => "Int32".to_string(),
-            Primitive::Int64 => "Int64".to_string(),
-            Primitive::Float32 => "Float32".to_string(),
-            Primitive::Float64 => "Float64".to_string(),
+            Primitive::Unit => "Unit",
+            Primitive::String => "String",
+            Primitive::Bool => "Bool",
+            Primitive::Int32 => "Int32",
+            Primitive::Int64 => "Int64",
+            Primitive::Float32 => "Float32",
+            Primitive::Float64 => "Float64",
         }
+        .to_owned()
     }
 }
 

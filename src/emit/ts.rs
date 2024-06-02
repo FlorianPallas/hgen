@@ -180,20 +180,20 @@ fn emit_model(name: &str, def: &Model, file_name: &str) -> String {
 
 fn reflect_model(name: &str, def: &Model) -> String {
     match def {
-        Model::Struct(def) => reflect_struct(name, def),
-        Model::Enum(def) => reflect_enum(name, def),
+        Model::Struct(inner) => format!("{}:{{{}}}", name, reflect_struct(inner)),
+        Model::Enum(inner) => format!("{}:{{{}}}", name, reflect_enum(inner)),
         Model::Alias(inner) => {
             format!(
-                "{}:{{type:'Alias',inner:{}}}",
+                "{}:{{type:'alias',inner:{}}}",
                 name,
-                reflect_shape(&inner.shape)
+                reflect_annotated_shape(&inner.shape)
             )
         }
         Model::External(inner) => {
             format!(
-                "{}:{{type:'External',inner:{}}}",
+                "{}:{{type:'external',inner:{}}}",
                 name,
-                reflect_shape(&inner.shape)
+                reflect_annotated_shape(&inner.shape)
             )
         }
     }
@@ -203,7 +203,7 @@ fn reflect_service(name: &str, def: &Service) -> String {
     let mut output = String::new();
 
     output.push_str(&format!("{}:{{", name));
-    output.push_str("type:'Service',");
+    output.push_str("type:'service',");
 
     output.push_str(&format!(
         "methods:{{{}}}",
@@ -221,36 +221,34 @@ fn reflect_service(name: &str, def: &Service) -> String {
 
 fn reflect_method(def: &Method) -> String {
     format!(
-        "{}:{{inputs:{{{}}},output:{}}}",
+        "{}:{{inputs:{{{}}},output:{{{}}}}}",
         def.name,
         def.inputs
             .iter()
-            .map(|(name, shape)| format!("{}:{}", name, reflect_shape(shape)))
+            .map(|(name, shape)| format!("{}:{{{}}}", name, reflect_annotated_shape(shape)))
             .collect::<Vec<_>>()
             .join(","),
-        reflect_shape(&def.output)
+        reflect_annotated_shape(&def.output)
     )
 }
 
-fn reflect_struct(name: &str, def: &Struct) -> String {
+fn reflect_struct(def: &Struct) -> String {
     format!(
-        "{}:{{type:'Struct',fields:{{{}}}}}",
-        name,
+        "type:'struct',fields:{{{}}}",
         def.fields
             .iter()
-            .map(|(name, shape)| format!("{}:{}", name, reflect_shape(shape)))
+            .map(|(name, shape)| format!("{}:{{{}}}", name, reflect_annotated_shape(shape)))
             .collect::<Vec<_>>()
             .join(",")
     )
 }
 
-fn reflect_enum(name: &str, def: &Enum) -> String {
+fn reflect_enum(def: &Enum) -> String {
     format!(
-        "{}:{{type:'Enum',fields:{{{}}}}}",
-        name,
+        "type:'enum',fields:{{{}}}",
         def.values
             .iter()
-            .map(|name| format!("{}:''", name))
+            .map(|value| format!("{}:''", value))
             .collect::<Vec<_>>()
             .join(",")
     )
@@ -258,21 +256,34 @@ fn reflect_enum(name: &str, def: &Enum) -> String {
 
 fn reflect_shape(shape: &Shape) -> String {
     match shape {
-        Shape::Primitive(inner) => format!("{{type:'{}'}}", inner.to_string()),
+        Shape::Primitive(inner) => format!("type:'{}'", inner.to_string().to_lowercase()),
         Shape::Nullable(inner) => {
-            format!("{{type:'Nullable',inner:{}}}", reflect_shape(inner))
+            format!("type:'nullable',inner:{{{}}}", reflect_shape(inner))
         }
-        Shape::List(inner) => format!("{{type:'List',inner:{}}}", reflect_shape(inner)),
-        Shape::Set(inner) => format!("{{type:'Set',inner:{}}}", reflect_shape(inner)),
+        Shape::List(inner) => format!("type:'list',inner:{{{}}}", reflect_shape(inner)),
+        Shape::Set(inner) => format!("type:'set',inner:{{{}}}", reflect_shape(inner)),
         Shape::Map(key, value) => {
             format!(
-                "{{type:'Map',key:{},value:{}}}",
+                "type:'map',key:{{{}}},value:{{{}}}",
                 reflect_shape(key),
                 reflect_shape(value)
             )
         }
-        Shape::Reference(inner) => format!("{{type:'Reference',name:'{}'}}", inner),
+        Shape::Reference(inner) => format!("type:'reference',name:'{}'", inner),
     }
+}
+
+fn reflect_annotated_shape(shape: &Annotated<Shape>) -> String {
+    format!(
+        "{},data:{{{}}}",
+        reflect_shape(shape),
+        shape
+            .data
+            .iter()
+            .map(|(k, v)| format!("{}:'{}'", k, v))
+            .collect::<Vec<_>>()
+            .join(","),
+    )
 }
 
 fn emit_alias(name: &str, alias: &Alias) -> String {
