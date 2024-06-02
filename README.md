@@ -8,14 +8,10 @@
 ## Usage
 
 The hGEN CLI can be used to generate code for a given schema file.
-In this example, we generate TypeScript code from a schema file by using the `.ts` output file extension.
 
 ```bash
 $ cargo install hgen
-$ hgen -i schema.hgen -o schema.ts
-[1/2] Parsing schema...
-[2/2] Emitting TypeScript code...
-done in 74μs
+$ hgen -i schema.hgen -o ts
 ```
 
 ## Philosophy
