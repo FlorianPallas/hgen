@@ -9,7 +9,7 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
         &schema
             .models
             .iter()
-            .map(emit_model)
+            .map(|(name, def)| emit_model(name, def))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -17,30 +17,26 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
     output
 }
 
-fn emit_model(def: &Model) -> String {
+fn emit_model(name: &str, def: &Model) -> String {
     match def {
-        Model::Struct(inner) => emit_struct(inner),
-        Model::Enum(inner) => emit_enum(inner),
-        Model::Alias(inner) => format!(
-            "pub type {} = {};\n",
-            inner.name,
-            emit_shape(&inner.def.shape)
-        ),
-        Model::External(inner) => format!("use external::{};\n", inner.name),
+        Model::Struct(inner) => emit_struct(name, inner),
+        Model::Enum(inner) => emit_enum(name, inner),
+        Model::Alias(inner) => format!("pub type {} = {};\n", name, emit_shape(&inner.shape)),
+        Model::External(_) => format!("use external::{};\n", name),
     }
 }
 
-fn emit_struct(def: &Struct) -> String {
+fn emit_struct(name: &str, def: &Struct) -> String {
     let mut output = String::new();
 
     output.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
-    output.push_str(&format!("pub struct {} ", &def.name));
+    output.push_str(&format!("pub struct {} ", name));
     output.push_str("{\n");
-    def.fields.iter().for_each(|(name, field)| {
+    def.fields.iter().for_each(|(name, shape)| {
         output.push_str(&format!(
             "    pub {}: {},\n",
             name.to_snake_case(),
-            emit_shape(&field.shape)
+            emit_shape(shape)
         ));
     });
     output.push_str("}\n");
@@ -48,11 +44,11 @@ fn emit_struct(def: &Struct) -> String {
     output
 }
 
-fn emit_enum(def: &Enum) -> String {
+fn emit_enum(name: &str, def: &Enum) -> String {
     let mut output = String::new();
 
     output.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
-    output.push_str(&format!("pub enum {} ", &def.name));
+    output.push_str(&format!("pub enum {} ", name));
     output.push_str("{\n");
     def.values.iter().for_each(|value| {
         output.push_str(&format!("    {},\n", value,));

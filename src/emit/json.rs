@@ -11,7 +11,7 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
         schema
             .models
             .iter()
-            .map(emit_model)
+            .map(|(name, def)| emit_model(name, def))
             .collect::<Vec<_>>()
             .join(",")
     ));
@@ -23,7 +23,7 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
         schema
             .services
             .iter()
-            .map(emit_service)
+            .map(|(name, def)| emit_service(name, def))
             .collect::<Vec<_>>()
             .join(",")
     ));
@@ -33,26 +33,26 @@ pub fn emit_schema(_name: &str, schema: &Schema) -> String {
     output
 }
 
-fn emit_model(model: &Model) -> String {
+fn emit_model(name: &str, model: &Model) -> String {
     match model {
-        Model::Struct(inner) => emit_struct(inner),
-        Model::Enum(inner) => emit_enum(inner),
-        Model::Alias(inner) => emit_alias(inner),
-        Model::External(inner) => emit_external(inner),
+        Model::Struct(inner) => emit_struct(name, inner),
+        Model::Enum(inner) => emit_enum(name, inner),
+        Model::Alias(inner) => emit_alias(name, inner),
+        Model::External(inner) => emit_external(name, inner),
     }
 }
 
-fn emit_struct(def: &Struct) -> String {
+fn emit_struct(name: &str, def: &Struct) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("\"{}\":{{", def.name));
+    output.push_str(&format!("\"{}\":{{", name));
     output.push_str("\"type\":\"Struct\",");
 
     output.push_str(&format!(
         "\"fields\":{{{}}}",
         def.fields
             .iter()
-            .map(|(name, field)| { format!("\"{}\":{}", name, emit_shape(&field.shape)) })
+            .map(|(name, shape)| { format!("\"{}\":{}", name, emit_shape(shape)) })
             .collect::<Vec<_>>()
             .join(",")
     ));
@@ -62,10 +62,10 @@ fn emit_struct(def: &Struct) -> String {
     output
 }
 
-fn emit_enum(def: &Enum) -> String {
+fn emit_enum(name: &str, def: &Enum) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("\"{}\":{{", def.name));
+    output.push_str(&format!("\"{}\":{{", name));
     output.push_str("\"type\":\"Enum\",");
 
     output.push_str(&format!(
@@ -82,19 +82,19 @@ fn emit_enum(def: &Enum) -> String {
     output
 }
 
-fn emit_alias(alias: &Alias) -> String {
+fn emit_alias(name: &str, alias: &Alias) -> String {
     format!(
         "\"{}\":{{\"type\":\"Alias\",\"inner\":{}}}",
-        alias.name,
-        emit_shape(&alias.def.shape)
+        name,
+        emit_shape(&alias.shape)
     )
 }
 
-fn emit_external(external: &External) -> String {
+fn emit_external(name: &str, external: &External) -> String {
     format!(
         "\"{}\":{{\"type\":\"External\",\"inner\":{}}}",
-        external.name,
-        emit_shape(&external.def.shape)
+        name,
+        emit_shape(&external.shape)
     )
 }
 
@@ -126,10 +126,10 @@ fn emit_shape(shape: &Shape) -> String {
     }
 }
 
-fn emit_service(service: &Service) -> String {
+fn emit_service(name: &str, service: &Service) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("\"{}\":{{", service.name));
+    output.push_str(&format!("\"{}\":{{", name));
     output.push_str("\"type\":\"Service\",");
 
     output.push_str(&format!(
@@ -154,9 +154,9 @@ fn emit_method(method: &Method) -> String {
         method
             .inputs
             .iter()
-            .map(|(name, def)| format!("\"{}\":{}", name, emit_shape(&def.shape)))
+            .map(|(name, shape)| format!("\"{}\":{}", name, emit_shape(shape)))
             .collect::<Vec<_>>()
             .join(","),
-        emit_shape(&method.output.shape)
+        emit_shape(&method.output)
     )
 }

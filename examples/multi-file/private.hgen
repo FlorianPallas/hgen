@@ -1,0 +1,6 @@
+use model;
+
+service PrivatePostService {
+  create(slug: String, title: String, body: String) -> Post,
+  delete(slug: String) -> Unit,
+}

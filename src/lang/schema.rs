@@ -1,23 +1,48 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Schema {
-    pub models: Vec<Model>,
-    pub services: Vec<Service>,
+    pub imports: Vec<String>,
+    pub models: HashMap<String, Model>,
+    pub services: HashMap<String, Service>,
+}
+
+impl Default for Schema {
+    fn default() -> Self {
+        Self {
+            imports: Default::default(),
+            models: Default::default(),
+            services: Default::default(),
+        }
+    }
+}
+
+impl Schema {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn extend(&mut self, other: Schema) {
+        self.imports.extend(other.imports);
+        self.models.extend(other.models);
+        self.services.extend(other.services);
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Service {
-    pub name: String,
     pub methods: Vec<Method>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Method {
     pub name: String,
-    pub inputs: Vec<(String, Type)>,
-    pub output: Type,
+    pub inputs: Vec<(String, Annotated<Shape>)>,
+    pub output: Annotated<Shape>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,17 +51,6 @@ pub enum Model {
     Enum(Enum),
     Alias(Alias),
     External(External),
-}
-
-impl Model {
-    pub fn name(&self) -> &str {
-        match self {
-            Model::Struct(s) => &s.name,
-            Model::Enum(e) => &e.name,
-            Model::Alias(a) => &a.name,
-            Model::External(c) => &c.name,
-        }
-    }
 }
 
 impl ToString for Model {
@@ -50,34 +64,83 @@ impl ToString for Model {
     }
 }
 
+impl From<Struct> for Model {
+    fn from(value: Struct) -> Self {
+        Model::Struct(value)
+    }
+}
+
+impl From<Enum> for Model {
+    fn from(value: Enum) -> Self {
+        Model::Enum(value)
+    }
+}
+
+impl From<Alias> for Model {
+    fn from(value: Alias) -> Self {
+        Model::Alias(value)
+    }
+}
+
+impl From<External> for Model {
+    fn from(value: External) -> Self {
+        Model::External(value)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Struct {
-    pub name: String,
-    pub fields: Vec<(String, Type)>,
+    pub fields: Vec<(String, Annotated<Shape>)>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Enum {
-    pub name: String,
     pub values: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Type {
-    pub shape: Shape,
+pub struct Annotated<T> {
+    inner: T,
     pub data: HashMap<String, String>,
+}
+
+impl<T> Annotated<T> {
+    pub fn new(inner: T, data: HashMap<String, String>) -> Self {
+        Self { inner, data }
+    }
+}
+
+impl<T: Default> Default for Annotated<T> {
+    fn default() -> Self {
+        Self {
+            inner: T::default(),
+            data: Default::default(),
+        }
+    }
+}
+
+impl Deref for Annotated<Shape> {
+    type Target = Shape;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for Annotated<Shape> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Alias {
-    pub name: String,
-    pub def: Type,
+    pub shape: Annotated<Shape>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct External {
-    pub name: String,
-    pub def: Type,
+    pub shape: Annotated<Shape>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

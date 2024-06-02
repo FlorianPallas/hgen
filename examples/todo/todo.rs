@@ -1,8 +1,4 @@
 use serde::{Serialize, Deserialize};
-use external::Instant;
-
-pub type UUID = String;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Todo {
     pub id: UUID,
@@ -12,11 +8,15 @@ pub struct Todo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateTodoParams {
+    pub title: Option<String>,
+}
+
+use external::Instant;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateTodoParams {
     pub title: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateTodoParams {
-    pub title: Option<String>,
-}
+pub type UUID = String;

@@ -1,6 +1,6 @@
 use crate::lang::schema::*;
 
-pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
+pub fn emit_schema(file_name: &str, schema: &Schema) -> String {
     let mut output = String::new();
 
     // emit header
@@ -12,7 +12,7 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
         &schema
             .models
             .iter()
-            .map(|m| emit_model(m, module_name))
+            .map(|(name, def)| emit_model(name, def, file_name))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -23,7 +23,7 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
         &schema
             .services
             .iter()
-            .map(emit_consumer)
+            .map(|(name, shape)| emit_consumer(name, shape))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -34,7 +34,7 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
         &schema
             .services
             .iter()
-            .map(emit_provider)
+            .map(|(name, def)| emit_provider(name, def))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -50,13 +50,14 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
     output
 }
 
-fn emit_provider(def: &Service) -> String {
+fn emit_provider(name: &str, service: &Service) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("export interface {}Provider ", def.name));
+    output.push_str(&format!("export interface {}Provider ", name));
     output.push_str("{\n");
     output.push_str(
-        &def.methods
+        &service
+            .methods
             .iter()
             .map(emit_provider_method)
             .collect::<Vec<_>>()
@@ -67,33 +68,35 @@ fn emit_provider(def: &Service) -> String {
     output
 }
 
-fn emit_provider_method(def: &Method) -> String {
+fn emit_provider_method(method: &Method) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
         "  {}({}): Promise<{}>;\n",
-        def.name,
-        def.inputs
+        method.name,
+        method
+            .inputs
             .iter()
-            .map(|(name, def)| format!("{}: {}", name, emit_shape(&def.shape)))
+            .map(|(name, shape)| format!("{}: {}", name, emit_shape(shape)))
             .collect::<Vec<_>>()
             .join(", "),
-        emit_shape(&def.output.shape)
+        emit_shape(&method.output)
     ));
 
     output
 }
 
-fn emit_consumer(def: &Service) -> String {
+fn emit_consumer(name: &str, service: &Service) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("export class {}Consumer ", def.name));
+    output.push_str(&format!("export class {}Consumer ", name));
     output.push_str("{\n");
     output.push_str(
-        "  constructor(protected request: (method: string, inputs: any) => Promise<any>) {}\n\n",
+        "  constructor(\n    protected request: (method: string, inputs: any) => Promise<any>\n  ) {}\n\n",
     );
     output.push_str(
-        &def.methods
+        &service
+            .methods
             .iter()
             .map(emit_consumer_method)
             .collect::<Vec<_>>()
@@ -104,23 +107,25 @@ fn emit_consumer(def: &Service) -> String {
     output
 }
 
-fn emit_consumer_method(def: &Method) -> String {
+fn emit_consumer_method(method: &Method) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
         "  {}({}): Promise<{}> {{\n",
-        def.name,
-        def.inputs
+        method.name,
+        method
+            .inputs
             .iter()
-            .map(|(name, def)| format!("{}: {}", name, emit_shape(&def.shape)))
+            .map(|(name, shape)| format!("{}: {}", name, emit_shape(shape)))
             .collect::<Vec<_>>()
             .join(", "),
-        emit_shape(&def.output.shape)
+        emit_shape(&method.output)
     ));
     output.push_str(&format!(
         "    return this.request(\"{}\", {{ {} }});\n",
-        def.name,
-        def.inputs
+        method.name,
+        method
+            .inputs
             .iter()
             .map(|(name, _)| name.as_str())
             .collect::<Vec<_>>()
@@ -142,7 +147,7 @@ fn reflect_schema(schema: &Schema) -> String {
         schema
             .models
             .iter()
-            .map(reflect_model)
+            .map(|(name, def)| reflect_model(name, def))
             .collect::<Vec<_>>()
             .join(",")
     ));
@@ -154,7 +159,7 @@ fn reflect_schema(schema: &Schema) -> String {
         schema
             .services
             .iter()
-            .map(reflect_service)
+            .map(|(name, def)| reflect_service(name, def))
             .collect::<Vec<_>>()
             .join(",")
     ));
@@ -164,50 +169,45 @@ fn reflect_schema(schema: &Schema) -> String {
     output
 }
 
-fn emit_model(model: &Model, module_name: &str) -> String {
-    match model {
-        Model::Struct(s) => emit_struct(s),
-        Model::Enum(e) => emit_enum(e),
-        Model::Alias(a) => emit_alias(a),
-        Model::External(_) => format!(
-            "import {{ {} }} from './{}.external';\n",
-            model.name(),
-            module_name
-        ),
+fn emit_model(name: &str, def: &Model, file_name: &str) -> String {
+    match def {
+        Model::Struct(s) => emit_struct(name, s),
+        Model::Enum(e) => emit_enum(name, e),
+        Model::Alias(a) => emit_alias(name, a),
+        Model::External(_) => format!("import {{ {} }} from './{}.external';\n", name, file_name),
     }
 }
 
-fn reflect_model(model: &Model) -> String {
-    match model {
-        Model::Struct(def) => reflect_struct(def),
-        Model::Enum(def) => reflect_enum(def),
+fn reflect_model(name: &str, def: &Model) -> String {
+    match def {
+        Model::Struct(def) => reflect_struct(name, def),
+        Model::Enum(def) => reflect_enum(name, def),
         Model::Alias(inner) => {
             format!(
                 "{}:{{type:'Alias',inner:{}}}",
-                inner.name,
-                reflect_type(&inner.def)
+                name,
+                reflect_shape(&inner.shape)
             )
         }
         Model::External(inner) => {
             format!(
                 "{}:{{type:'External',inner:{}}}",
-                inner.name,
-                reflect_type(&inner.def)
+                name,
+                reflect_shape(&inner.shape)
             )
         }
     }
 }
 
-fn reflect_service(service: &Service) -> String {
+fn reflect_service(name: &str, def: &Service) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("{}:{{", service.name));
+    output.push_str(&format!("{}:{{", name));
     output.push_str("type:'Service',");
 
     output.push_str(&format!(
         "methods:{{{}}}",
-        service
-            .methods
+        def.methods
             .iter()
             .map(reflect_method)
             .collect::<Vec<_>>()
@@ -219,40 +219,35 @@ fn reflect_service(service: &Service) -> String {
     output
 }
 
-fn reflect_method(method: &Method) -> String {
+fn reflect_method(def: &Method) -> String {
     format!(
         "{}:{{inputs:{{{}}},output:{}}}",
-        method.name,
-        method
-            .inputs
+        def.name,
+        def.inputs
             .iter()
-            .map(|(name, def)| format!("{}:{}", name, reflect_type(def)))
+            .map(|(name, shape)| format!("{}:{}", name, reflect_shape(shape)))
             .collect::<Vec<_>>()
             .join(","),
-        reflect_type(&method.output)
+        reflect_shape(&def.output)
     )
 }
 
-fn reflect_type(def: &Type) -> String {
-    format!("{}", reflect_shape(&def.shape))
-}
-
-fn reflect_struct(def: &Struct) -> String {
+fn reflect_struct(name: &str, def: &Struct) -> String {
     format!(
         "{}:{{type:'Struct',fields:{{{}}}}}",
-        def.name,
+        name,
         def.fields
             .iter()
-            .map(|(name, def)| format!("{}:{}", name, reflect_shape(&def.shape)))
+            .map(|(name, shape)| format!("{}:{}", name, reflect_shape(shape)))
             .collect::<Vec<_>>()
             .join(",")
     )
 }
 
-fn reflect_enum(def: &Enum) -> String {
+fn reflect_enum(name: &str, def: &Enum) -> String {
     format!(
         "{}:{{type:'Enum',fields:{{{}}}}}",
-        def.name,
+        name,
         def.values
             .iter()
             .map(|name| format!("{}:''", name))
@@ -280,18 +275,14 @@ fn reflect_shape(shape: &Shape) -> String {
     }
 }
 
-fn emit_alias(alias: &Alias) -> String {
-    format!(
-        "export type {} = {};\n",
-        alias.name,
-        emit_shape(&alias.def.shape)
-    )
+fn emit_alias(name: &str, alias: &Alias) -> String {
+    format!("export type {} = {};\n", name, emit_shape(&alias.shape))
 }
 
-fn emit_enum(message: &Enum) -> String {
+fn emit_enum(name: &str, message: &Enum) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("export enum {} ", message.name));
+    output.push_str(&format!("export enum {} ", name));
     output.push_str("{\n");
     message.values.iter().for_each(|name| {
         output.push_str(&format!("  {} = '{}',\n", name, name));
@@ -301,13 +292,13 @@ fn emit_enum(message: &Enum) -> String {
     output
 }
 
-fn emit_struct(message: &Struct) -> String {
+fn emit_struct(name: &str, message: &Struct) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("export class {} ", message.name));
+    output.push_str(&format!("export class {} ", name));
     output.push_str("{\n");
-    message.fields.iter().for_each(|(name, def)| {
-        output.push_str(&format!("  {}: {};\n", name, emit_shape(&def.shape)));
+    message.fields.iter().for_each(|(name, shape)| {
+        output.push_str(&format!("  {}: {};\n", name, emit_shape(shape)));
     });
     output.push_str("}\n");
 
@@ -325,7 +316,7 @@ fn emit_shape(shape: &Shape) -> String {
             Primitive::Float64 { .. } => "number".to_owned(),
             Primitive::String { .. } => "string".to_owned(),
         },
-        Shape::Nullable(inner) => format!("({} | null)", emit_shape(inner)),
+        Shape::Nullable(inner) => format!("{} | null", emit_shape(inner)),
         Shape::List(inner) => format!("({}[])", emit_shape(inner)),
         Shape::Set(inner) => format!("Set<{}>", emit_shape(inner)),
         Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),

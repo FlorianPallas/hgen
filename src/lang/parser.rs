@@ -105,26 +105,37 @@ impl Context {
 }
 
 fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
-    let mut models = Vec::new();
-    let mut services = Vec::new();
+    let mut imports = Vec::new();
+    let mut models: HashMap<String, Model> = HashMap::new();
+    let mut services = HashMap::new();
 
     loop {
         if let Some(token) = context.peek() {
             match token {
+                Token::Keyword(Keyword::Use) => {
+                    context.pop_exact(Token::Keyword(Keyword::Use))?;
+                    imports.push(context.pop_identifier()?);
+                    context.pop_exact(Token::SemiColon)?;
+                }
                 Token::Keyword(Keyword::Struct) => {
-                    models.push(Model::Struct(parse_struct(context)?));
+                    let (name, def) = parse_struct(context)?;
+                    models.insert(name, def.into());
                 }
                 Token::Keyword(Keyword::Enum) => {
-                    models.push(Model::Enum(parse_enum(context)?));
+                    let (name, def) = parse_enum(context)?;
+                    models.insert(name, def.into());
                 }
                 Token::Keyword(Keyword::Alias) => {
-                    models.push(Model::Alias(parse_alias(context)?));
+                    let (name, def) = parse_alias(context)?;
+                    models.insert(name, def.into());
                 }
                 Token::Keyword(Keyword::Extern) => {
-                    models.push(Model::External(parse_extern_type(context)?));
+                    let (name, def) = parse_extern_type(context)?;
+                    models.insert(name, def.into());
                 }
                 Token::Keyword(Keyword::Service) => {
-                    services.push(parse_service(context)?);
+                    let (name, def) = parse_service(context)?;
+                    services.insert(name, def);
                 }
                 _ => {
                     return Err(ParseError::UnexpectedToken {
@@ -137,10 +148,14 @@ fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
         }
     }
 
-    Ok(Schema { models, services })
+    Ok(Schema {
+        imports,
+        models,
+        services,
+    })
 }
 
-fn parse_service(context: &mut Context) -> Result<Service, ParseError> {
+fn parse_service(context: &mut Context) -> Result<(String, Service), ParseError> {
     context.pop_exact(Token::Keyword(Keyword::Service))?;
     let name = context.pop_identifier()?;
     context.pop_exact(Token::OpenBrace)?;
@@ -149,7 +164,7 @@ fn parse_service(context: &mut Context) -> Result<Service, ParseError> {
 
     loop {
         if context.pop_if(Token::CloseBrace).is_some() {
-            break Ok(Service { name, methods });
+            break Ok((name, Service { methods }));
         }
 
         let name = context.pop_identifier()?;
@@ -163,7 +178,7 @@ fn parse_service(context: &mut Context) -> Result<Service, ParseError> {
 
             let name = context.pop_identifier()?;
             context.pop_exact(Token::Colon)?;
-            let def = parse_type(context)?;
+            let def = parse_annotated_shape(context)?;
             request.push((name, def));
             context.pop_if(Token::Comma);
         }
@@ -171,7 +186,7 @@ fn parse_service(context: &mut Context) -> Result<Service, ParseError> {
         context.pop_exact(Token::Dash)?;
         context.pop_exact(Token::AngleBracketClose)?;
 
-        let response = parse_type(context)?;
+        let response = parse_annotated_shape(context)?;
         context.pop_exact(Token::Comma)?;
         methods.push(Method {
             name,
@@ -181,28 +196,28 @@ fn parse_service(context: &mut Context) -> Result<Service, ParseError> {
     }
 }
 
-fn parse_extern_type(context: &mut Context) -> Result<External, ParseError> {
+fn parse_extern_type(context: &mut Context) -> Result<(String, External), ParseError> {
     context.pop_exact(Token::Keyword(Keyword::Extern))?;
     context.pop_exact(Token::Keyword(Keyword::Alias))?;
     let name = context.pop_identifier()?;
     context.pop_exact(Token::Equals)?;
-    let def = parse_type(context)?;
+    let shape = parse_annotated_shape(context)?;
     context.pop_exact(Token::SemiColon)?;
 
-    Ok(External { name, def })
+    Ok((name, External { shape }))
 }
 
-fn parse_alias(context: &mut Context) -> Result<Alias, ParseError> {
+fn parse_alias(context: &mut Context) -> Result<(String, Alias), ParseError> {
     context.pop_exact(Token::Keyword(Keyword::Alias))?;
     let name = context.pop_identifier()?;
     context.pop_exact(Token::Equals)?;
-    let def = parse_type(context)?;
+    let shape = parse_annotated_shape(context)?;
     context.pop_exact(Token::SemiColon)?;
 
-    Ok(Alias { name, def })
+    Ok((name, Alias { shape }))
 }
 
-fn parse_struct(context: &mut Context) -> Result<Struct, ParseError> {
+fn parse_struct(context: &mut Context) -> Result<(String, Struct), ParseError> {
     context.pop_exact(Token::Keyword(Keyword::Struct))?;
     let name = context.pop_identifier()?;
     context.pop_exact(Token::OpenBrace)?;
@@ -211,18 +226,18 @@ fn parse_struct(context: &mut Context) -> Result<Struct, ParseError> {
 
     loop {
         if context.pop_if(Token::CloseBrace).is_some() {
-            break Ok(Struct { name, fields });
+            break Ok((name, Struct { fields }));
         }
 
         let name = context.pop_identifier()?;
         context.pop_exact(Token::Colon)?;
-        let def = parse_type(context)?;
+        let def = parse_annotated_shape(context)?;
         context.pop_exact(Token::Comma)?;
         fields.push((name, def));
     }
 }
 
-fn parse_enum(context: &mut Context) -> Result<Enum, ParseError> {
+fn parse_enum(context: &mut Context) -> Result<(String, Enum), ParseError> {
     context.pop_exact(Token::Keyword(Keyword::Enum))?;
     let name = context.pop_identifier()?;
     context.pop_exact(Token::OpenBrace)?;
@@ -231,10 +246,7 @@ fn parse_enum(context: &mut Context) -> Result<Enum, ParseError> {
 
     loop {
         if context.pop_if(Token::CloseBrace).is_some() {
-            break Ok(Enum {
-                name,
-                values: fields,
-            });
+            break Ok((name, Enum { values: fields }));
         }
 
         let name = context.pop_identifier()?;
@@ -244,7 +256,7 @@ fn parse_enum(context: &mut Context) -> Result<Enum, ParseError> {
     }
 }
 
-fn parse_type(context: &mut Context) -> Result<Type, ParseError> {
+fn parse_annotated_shape(context: &mut Context) -> Result<Annotated<Shape>, ParseError> {
     let name = context.pop_identifier()?;
     let mut args = Vec::new();
 
@@ -283,7 +295,7 @@ fn parse_type(context: &mut Context) -> Result<Type, ParseError> {
         shape = Shape::Nullable(Box::new(shape));
     }
 
-    Ok(Type { shape, data })
+    Ok(Annotated::new(shape, data))
 }
 
 fn parse_shape(name: String, args: Vec<String>) -> Shape {

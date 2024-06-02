@@ -77,6 +77,7 @@ pub enum Keyword {
     Enum,
     Extern,
     Service,
+    Use,
 }
 
 impl Keyword {
@@ -87,6 +88,7 @@ impl Keyword {
             "enum" => Keyword::Enum,
             "extern" => Keyword::Extern,
             "service" => Keyword::Service,
+            "use" => Keyword::Use,
             _ => return None,
         }
         .into()
