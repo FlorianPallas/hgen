@@ -153,7 +153,6 @@ fn parse_service(context: &mut Context) -> Result<Service, ParseError> {
         }
 
         let name = context.pop_identifier()?;
-        context.pop_exact(Token::Colon)?;
         context.pop_exact(Token::OpenParen)?;
 
         let mut request = Vec::new();

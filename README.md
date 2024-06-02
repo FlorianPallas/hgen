@@ -46,8 +46,15 @@ struct Todo {
   checkedAt: Instant?,
 }
 
-struct CreateTodo {
+struct CreateTodoParams {
   title: String,
+}
+
+service TodoService {
+  create(params: CreateTodoParams) -> Todo,
+  find() -> List<Todo>,
+  check(id: UUID) -> Unit,
+  uncheck(id: UUID) -> Unit,
 }
 ```
 

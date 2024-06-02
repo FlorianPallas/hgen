@@ -20,9 +20,9 @@ struct UpdateTodoParams {
 }
 
 service TodoService {
-  create: (params: CreateTodoParams) -> Todo,
-  get: (id: UUID) -> Todo,
-  getAll: () -> List<Todo>,
-  update: (id: UUID, params: UpdateTodoParams) -> Todo,
-  delete: (id: UUID) -> Unit,
+  create(params: CreateTodoParams) -> Todo,
+  get(id: UUID) -> Todo,
+  getAll() -> List<Todo>,
+  update(id: UUID, params: UpdateTodoParams) -> Todo,
+  delete(id: UUID) -> Unit,
 }
