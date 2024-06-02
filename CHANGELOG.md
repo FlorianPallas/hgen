@@ -2,25 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.4.0] - 2024-06-02
 
 ### Features
 
 - *(lang)* add unit primitive
 - *(typescript)* emit provider and consumer types
+- *(lang)* add support for multi-file schemas
+- *(typescript)* reflect shape metadata, use camel case for type names
+
+### Fixes
+
+- *(lang)* models and services are now emitted in the order they are defined in
 
 ### Refactor
 
 - remove reference resolving to simplify code emission code
 - *(lang)* clean up primitive parsing
+- *(lang)* change how service methods are defined to match the average function syntax more closely
 
 ### Documentation
 
 - add service to todo example
+- update readme to reflect new output parameter
 
 ### Miscellaneous
 
 - add build command to build script
+- use lowercase text in changelog
 
 ## [0.3.0] - 2024-05-30
 
