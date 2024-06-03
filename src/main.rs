@@ -16,7 +16,7 @@ struct Options {
     #[clap(short, long)]
     input: String,
 
-    /// The type of code to emit
+    /// Path to the output file
     #[clap(short, long)]
     output: String,
 }
@@ -28,6 +28,10 @@ fn main() -> anyhow::Result<()> {
     let input_path = Path::new(&options.input).to_path_buf();
     let input_dir = input_path.parent().unwrap();
     let input_file_name = input_path.file_stem().unwrap();
+
+    let output_path = Path::new(&options.output).to_path_buf();
+    let output_dir = output_path.parent().unwrap();
+    let output_file_extension = output_path.extension().unwrap().to_str().unwrap();
 
     let mut root = Schema::new();
     let mut sources = vec![input_path.clone()];
@@ -50,20 +54,14 @@ fn main() -> anyhow::Result<()> {
         root.extend(schema);
     }
 
-    options.output.split(",").for_each(|output| {
-        let strategy = Strategy::parse(output).expect("Unsupported output");
+    let strategy = Strategy::parse(output_file_extension).expect("Unsupported output");
 
-        println!("emitting {} code", style(&strategy).cyan().bold());
+    println!("emitting {} code", style(&strategy).cyan().bold());
+    println!("{}", style(output_path.display()).dim());
 
-        let output_path = input_dir
-            .join(input_file_name)
-            .with_extension(strategy.extension());
-
-        println!("{}", style(output_path.display()).dim());
-
-        let output = strategy.emit(input_file_name.to_str().unwrap(), &root);
-        fs::write(output_path, output).unwrap();
-    });
+    let output = strategy.emit(input_file_name.to_str().unwrap(), &root);
+    fs::create_dir_all(output_dir).unwrap();
+    fs::write(output_path, output).unwrap();
 
     println!("done in {}μs", started.elapsed().as_micros());
 
@@ -101,15 +99,6 @@ impl Strategy {
             _ => return None,
         }
         .into()
-    }
-
-    fn extension(&self) -> &'static str {
-        match self {
-            Strategy::Rust => "rs",
-            Strategy::TypeScript => "ts",
-            Strategy::Dart => "dart",
-            Strategy::JSON => "json",
-        }
     }
 }
 

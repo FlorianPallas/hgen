@@ -11,7 +11,7 @@ The hGEN CLI can be used to generate code for a given schema file.
 
 ```bash
 $ cargo install hgen
-$ hgen -i schema.hgen -o ts
+$ hgen -i schema.hgen -o schema.ts
 ```
 
 ## Philosophy
