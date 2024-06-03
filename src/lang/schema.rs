@@ -1,10 +1,6 @@
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
-
 use super::map::OrderedHashMap;
+use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Schema {
@@ -43,7 +39,7 @@ pub struct Service {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Method {
     pub name: String,
-    pub inputs: Vec<(String, Annotated<Shape>)>,
+    pub inputs: OrderedHashMap<String, Annotated<Shape>>,
     pub output: Annotated<Shape>,
 }
 
@@ -93,7 +89,7 @@ impl From<External> for Model {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Struct {
-    pub fields: Vec<(String, Annotated<Shape>)>,
+    pub fields: OrderedHashMap<String, Annotated<Shape>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -104,11 +100,11 @@ pub struct Enum {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Annotated<T> {
     inner: T,
-    pub data: HashMap<String, String>,
+    pub data: OrderedHashMap<String, String>,
 }
 
 impl<T> Annotated<T> {
-    pub fn new(inner: T, data: HashMap<String, String>) -> Self {
+    pub fn new(inner: T, data: OrderedHashMap<String, String>) -> Self {
         Self { inner, data }
     }
 }

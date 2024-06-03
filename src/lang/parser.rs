@@ -1,5 +1,5 @@
 use console::style;
-use std::{collections::HashMap, iter::Peekable, vec::IntoIter};
+use std::{iter::Peekable, vec::IntoIter};
 use thiserror::Error;
 
 use super::lexer::{Keyword, Token};
@@ -171,7 +171,7 @@ fn parse_service(context: &mut Context) -> Result<(String, Service), ParseError>
         let name = context.pop_identifier()?;
         context.pop_exact(Token::OpenParen)?;
 
-        let mut request = Vec::new();
+        let mut inputs = OrderedHashMap::new();
         loop {
             if context.pop_if(Token::CloseParen).is_some() {
                 break;
@@ -180,19 +180,20 @@ fn parse_service(context: &mut Context) -> Result<(String, Service), ParseError>
             let name = context.pop_identifier()?;
             context.pop_exact(Token::Colon)?;
             let def = parse_annotated_shape(context)?;
-            request.push((name, def));
+            inputs.insert(name, def);
             context.pop_if(Token::Comma);
         }
 
         context.pop_exact(Token::Dash)?;
         context.pop_exact(Token::AngleBracketClose)?;
 
-        let response = parse_annotated_shape(context)?;
+        let output = parse_annotated_shape(context)?;
         context.pop_exact(Token::Comma)?;
+
         methods.push(Method {
             name,
-            inputs: request,
-            output: response,
+            inputs,
+            output,
         });
     }
 }
@@ -223,7 +224,7 @@ fn parse_struct(context: &mut Context) -> Result<(String, Struct), ParseError> {
     let name = context.pop_identifier()?;
     context.pop_exact(Token::OpenBrace)?;
 
-    let mut fields = Vec::new();
+    let mut fields = OrderedHashMap::new();
 
     loop {
         if context.pop_if(Token::CloseBrace).is_some() {
@@ -234,7 +235,7 @@ fn parse_struct(context: &mut Context) -> Result<(String, Struct), ParseError> {
         context.pop_exact(Token::Colon)?;
         let def = parse_annotated_shape(context)?;
         context.pop_exact(Token::Comma)?;
-        fields.push((name, def));
+        fields.insert(name, def);
     }
 }
 
@@ -273,7 +274,7 @@ fn parse_annotated_shape(context: &mut Context) -> Result<Annotated<Shape>, Pars
         }
     }
 
-    let mut data = HashMap::new();
+    let mut data = OrderedHashMap::new();
     if context.pop_if(Token::Ampersand).is_some() {
         context.pop_exact(Token::OpenBrace)?;
 
