@@ -61,14 +61,18 @@ fn emit_enum(name: &str, def: &Enum) -> String {
 fn emit_shape(def: &Shape) -> String {
     match def {
         Shape::Primitive(primitive) => match primitive {
-            Primitive::Unit { .. } => "()".to_owned(),
-            Primitive::Bool { .. } => "bool".to_owned(),
-            Primitive::Int32 { .. } => "i32".to_owned(),
-            Primitive::Int64 { .. } => "i64".to_owned(),
-            Primitive::Float32 { .. } => "f32".to_owned(),
-            Primitive::Float64 { .. } => "f64".to_owned(),
-            Primitive::String { .. } => "String".to_owned(),
-        },
+            Primitive::Unit { .. } => "()",
+            Primitive::Bool { .. } => "bool",
+            Primitive::Int8 { .. } => "i8",
+            Primitive::Int16 { .. } => "i16",
+            Primitive::Int32 { .. } => "i32",
+            Primitive::Int64 { .. } => "i64",
+            Primitive::Int128 { .. } => "i128",
+            Primitive::Float32 { .. } => "f32",
+            Primitive::Float64 { .. } => "f64",
+            Primitive::String { .. } => "String",
+        }
+        .to_owned(),
         Shape::Nullable(inner) => format!("Option<{}>", emit_shape(inner)),
         Shape::List(inner) => format!("Vec<{}>", emit_shape(inner)),
         Shape::Set(inner) => format!("Set<{}>", emit_shape(inner)),

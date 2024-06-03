@@ -100,16 +100,8 @@ fn emit_external(name: &str, external: &External) -> String {
 
 fn emit_shape(shape: &Shape) -> String {
     match shape {
-        Shape::Primitive(primitive) => format!(
-            "{{\"type\":\"{}\"}}",
-            match primitive {
-                Primitive::Unit { .. } => "Unit",
-                Primitive::Bool { .. } => "Bool",
-                Primitive::Int32 { .. } => "Int32",
-                Primitive::Int64 { .. } => "Int64",
-                Primitive::Float32 { .. } => "Float32",
-                Primitive::Float64 { .. } => "Float64",
-                Primitive::String { .. } => "String",
+        Shape::Primitive(primitive) => {
+            format!("{{\"type\":\"{}\"}}", primitive.to_string())
             }
         ),
         Shape::Nullable(inner) => {

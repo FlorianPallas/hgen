@@ -56,48 +56,27 @@ service TodoService {
 
 ## Reference
 
-### Targets
-
-- TypeScript
-
-  > https://www.npmjs.com/package/hgen
-
-- Dart
-
-  > https://pub.dev/packages/hgen
-
-- Rust
-
-  > https://crates.io/crates/hgen
-
 ### Types
 
-- Primitive Types:
+- Primitives:
 
+  - [x] `Struct`
+  - [x] `Enum`
   - [x] `Bool`
-  - [x] `Int32`, `Int64`
-  - [ ] `UInt32`, `UInt64`
+  - [x] `Int8`, `Int16`, `Int32`, `Int64`, `Int128`
+  - [ ] `UInt8`, `UInt16`, `UInt32`, `UInt64`, `UInt128`
   - [x] `Float32`, `Float64`
+  - [ ] `Char`
   - [x] `String`
-  - [x] `Optional`
-
-- Object Types:
-
-  - [x] `struct`
-  - [x] `enum`
-  - [ ] Data Enums / Unions
-  - [ ] Bitfield Enums
-
-- Collection Types:
-
-  - [ ] `[T, size]`
-  - [ ] `(T1, T2, ..., Tn)` Tuples
+  - [x] `Nullable`
+  - [x] `Unit`
+  - [ ] `(T1, T2, ..., Tn)`
   - [x] `List<T>`
-  - [x] `Set<T>`
   - [x] `Map<K, V>`
+  - [ ] `Union`
 
-- Other
+- Concepts:
 
-  - [x] Type Aliases
-  - [x] External Types
-  - [ ] Result Types
+  - [x] Type Alias
+  - [x] Custom Type
+  - [ ] Result Type

@@ -142,14 +142,18 @@ fn emit_struct(name: &str, def: &Struct) -> String {
 fn emit_shape(shape: &Shape) -> String {
     match shape {
         Shape::Primitive(primitive) => match primitive {
-            Primitive::Unit { .. } => "void".to_owned(),
-            Primitive::Bool { .. } => "bool".to_owned(),
-            Primitive::Int32 { .. } => "int".to_owned(),
-            Primitive::Int64 { .. } => "int".to_owned(),
-            Primitive::Float32 { .. } => "double".to_owned(),
-            Primitive::Float64 { .. } => "double".to_owned(),
-            Primitive::String { .. } => "String".to_owned(),
-        },
+            Primitive::Unit { .. } => "void",
+            Primitive::Bool { .. } => "bool",
+            Primitive::Int8 { .. } => "int",
+            Primitive::Int16 { .. } => "int",
+            Primitive::Int32 { .. } => "int",
+            Primitive::Int64 { .. } => "int",
+            Primitive::Int128 { .. } => todo!("Int128 not supported"),
+            Primitive::Float32 { .. } => "double",
+            Primitive::Float64 { .. } => "double",
+            Primitive::String { .. } => "String",
+        }
+        .to_owned(),
         Shape::Nullable(inner) => format!("{}?", emit_shape(inner)),
         Shape::List(inner) => format!("List<{}>", emit_shape(inner)),
         Shape::Set(inner) => format!("Set<{}>", emit_shape(inner)),
