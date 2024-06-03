@@ -164,10 +164,6 @@ fn parse_service(context: &mut Context) -> Result<(String, Service), ParseError>
     let mut methods = Vec::new();
 
     loop {
-        if context.pop_if(Token::CloseBrace).is_some() {
-            break Ok((name, Service { methods }));
-        }
-
         let name = context.pop_identifier()?;
         context.pop_exact(Token::OpenParen)?;
 
@@ -188,14 +184,21 @@ fn parse_service(context: &mut Context) -> Result<(String, Service), ParseError>
         context.pop_exact(Token::AngleBracketClose)?;
 
         let output = parse_annotated_shape(context)?;
-        context.pop_exact(Token::Comma)?;
 
         methods.push(Method {
             name,
             inputs,
             output,
         });
+
+        if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
+            break;
+        }
     }
+
+    context.pop_exact(Token::CloseBrace)?;
+
+    Ok((name, Service { methods }))
 }
 
 fn parse_extern_type(context: &mut Context) -> Result<(String, External), ParseError> {
@@ -227,16 +230,19 @@ fn parse_struct(context: &mut Context) -> Result<(String, Struct), ParseError> {
     let mut fields = OrderedHashMap::new();
 
     loop {
-        if context.pop_if(Token::CloseBrace).is_some() {
-            break Ok((name, Struct { fields }));
-        }
-
         let name = context.pop_identifier()?;
         context.pop_exact(Token::Colon)?;
         let def = parse_annotated_shape(context)?;
-        context.pop_exact(Token::Comma)?;
         fields.insert(name, def);
+
+        if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
+            break;
+        }
     }
+
+    context.pop_exact(Token::CloseBrace)?;
+
+    Ok((name, Struct { fields }))
 }
 
 fn parse_enum(context: &mut Context) -> Result<(String, Enum), ParseError> {
@@ -247,15 +253,17 @@ fn parse_enum(context: &mut Context) -> Result<(String, Enum), ParseError> {
     let mut fields = Vec::new();
 
     loop {
-        if context.pop_if(Token::CloseBrace).is_some() {
-            break Ok((name, Enum { values: fields }));
-        }
-
         let name = context.pop_identifier()?;
-        context.pop_exact(Token::Comma)?;
-
         fields.push(name);
+
+        if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
+            break;
+        }
     }
+
+    context.pop_exact(Token::CloseBrace)?;
+
+    Ok((name, Enum { values: fields }))
 }
 
 fn parse_annotated_shape(context: &mut Context) -> Result<Annotated<Shape>, ParseError> {
@@ -282,14 +290,15 @@ fn parse_annotated_shape(context: &mut Context) -> Result<Annotated<Shape>, Pars
             let key = context.pop_identifier()?;
             context.pop_exact(Token::Colon)?;
             let value = context.pop_identifier()?;
-            context.pop_exact(Token::Comma)?;
-
             data.insert(key, value);
 
-            if context.pop_if(Token::CloseBrace).is_some() {
+            if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace)
+            {
                 break;
             }
         }
+
+        context.pop_exact(Token::CloseBrace)?;
     }
 
     let mut shape = parse_shape(name, args);

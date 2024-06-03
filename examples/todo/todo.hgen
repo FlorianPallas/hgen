@@ -1,8 +1,6 @@
 extern alias Instant = String;
 
-alias UUID = String & {
-  type: uuid,
-};
+alias UUID = String & { type: uuid };
 
 struct Todo {
   id: UUID,
