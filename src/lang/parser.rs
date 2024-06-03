@@ -305,23 +305,11 @@ fn parse_shape(name: String, args: Vec<String>) -> Shape {
     }
 
     match name.as_str() {
-        "Optional" => {
-            let [inner] = &args[..] else {
-                panic!("Expected one argument for Optional but got {:?}", args)
-            };
-            Shape::Nullable(Box::new(parse_shape(inner.to_owned(), vec![])))
-        }
         "List" => {
             let [inner] = &args[..] else {
                 panic!("Expected one argument for List but got {:?}", args)
             };
             Shape::List(Box::new(parse_shape(inner.to_owned(), vec![])))
-        }
-        "Set" => {
-            let [inner] = &args[..] else {
-                panic!("Expected one argument for Set but got {:?}", args)
-            };
-            Shape::Set(Box::new(parse_shape(inner.to_owned(), vec![])))
         }
         "Map" => {
             let [key, value] = &args[..] else {

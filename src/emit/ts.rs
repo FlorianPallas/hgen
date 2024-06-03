@@ -261,7 +261,6 @@ fn reflect_shape(shape: &Shape) -> String {
             format!("type:'nullable',inner:{{{}}}", reflect_shape(inner))
         }
         Shape::List(inner) => format!("type:'list',inner:{{{}}}", reflect_shape(inner)),
-        Shape::Set(inner) => format!("type:'set',inner:{{{}}}", reflect_shape(inner)),
         Shape::Map(key, value) => {
             format!(
                 "type:'map',key:{{{}}},value:{{{}}}",
@@ -321,6 +320,8 @@ fn emit_shape(shape: &Shape) -> String {
         Shape::Primitive(primitive) => match primitive {
             Primitive::Unit { .. } => "void".to_owned(),
             Primitive::Bool { .. } => "boolean".to_owned(),
+            Primitive::Int8 { .. } => "number".to_owned(),
+            Primitive::Int16 { .. } => "number".to_owned(),
             Primitive::Int32 { .. } => "number".to_owned(),
             Primitive::Int64 { .. } => "bigint".to_owned(),
             Primitive::Int128 { .. } => "bigint".to_owned(),
@@ -330,7 +331,6 @@ fn emit_shape(shape: &Shape) -> String {
         },
         Shape::Nullable(inner) => format!("{} | null", emit_shape(inner)),
         Shape::List(inner) => format!("({}[])", emit_shape(inner)),
-        Shape::Set(inner) => format!("Set<{}>", emit_shape(inner)),
         Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),
         Shape::Reference(name) => name.to_owned(),
     }

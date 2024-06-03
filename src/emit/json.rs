@@ -102,13 +102,11 @@ fn emit_shape(shape: &Shape) -> String {
     match shape {
         Shape::Primitive(primitive) => {
             format!("{{\"type\":\"{}\"}}", primitive.to_string())
-            }
-        ),
+        }
         Shape::Nullable(inner) => {
             format!("{{\"type\":\"Nullable\",\"inner\":{}}}", emit_shape(inner))
         }
         Shape::List(inner) => format!("{{\"type\":\"List\",\"inner\":{}}}", emit_shape(inner)),
-        Shape::Set(inner) => format!("{{\"type\":\"Set\",\"inner\":{}}}", emit_shape(inner)),
         Shape::Map(key, value) => format!(
             "{{\"type\":\"Map\",\"key\":{},\"value\":{}}}",
             emit_shape(key),

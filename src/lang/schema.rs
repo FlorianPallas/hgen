@@ -151,7 +151,6 @@ pub enum Shape {
     Primitive(Primitive),
     Nullable(Box<Shape>),
     List(Box<Shape>),
-    Set(Box<Shape>),
     Map(Box<Shape>, Box<Shape>),
     Reference(String),
 }

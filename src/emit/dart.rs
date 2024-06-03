@@ -156,7 +156,6 @@ fn emit_shape(shape: &Shape) -> String {
         .to_owned(),
         Shape::Nullable(inner) => format!("{}?", emit_shape(inner)),
         Shape::List(inner) => format!("List<{}>", emit_shape(inner)),
-        Shape::Set(inner) => format!("Set<{}>", emit_shape(inner)),
         Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),
         Shape::Reference(name) => name.to_owned(),
     }
@@ -313,11 +312,6 @@ fn deserialize_shape(field_name: &str, shape: &Shape) -> String {
         ),
         Shape::List(inner) => format!(
             "({} as List<dynamic>).map((e) => {}).toList()",
-            field_name,
-            deserialize_shape("e", inner)
-        ),
-        Shape::Set(inner) => format!(
-            "({} as List<dynamic>).map((e) => {}).toSet()",
             field_name,
             deserialize_shape("e", inner)
         ),

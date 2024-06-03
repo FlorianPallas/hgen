@@ -75,7 +75,6 @@ fn emit_shape(def: &Shape) -> String {
         .to_owned(),
         Shape::Nullable(inner) => format!("Option<{}>", emit_shape(inner)),
         Shape::List(inner) => format!("Vec<{}>", emit_shape(inner)),
-        Shape::Set(inner) => format!("Set<{}>", emit_shape(inner)),
         Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),
         Shape::Reference(name) => name.to_owned(),
     }
