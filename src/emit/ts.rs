@@ -329,7 +329,7 @@ fn emit_shape(shape: &Shape) -> String {
             Primitive::Float64 { .. } => "number".to_owned(),
             Primitive::String { .. } => "string".to_owned(),
         },
-        Shape::Nullable(inner) => format!("{} | null", emit_shape(inner)),
+        Shape::Nullable(inner) => format!("({} | null)", emit_shape(inner)),
         Shape::List(inner) => format!("({}[])", emit_shape(inner)),
         Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),
         Shape::Reference(name) => name.to_owned(),
