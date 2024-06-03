@@ -184,14 +184,14 @@ fn reflect_model(name: &str, def: &Model) -> String {
         Model::Enum(inner) => format!("{}:{{{}}}", name, reflect_enum(inner)),
         Model::Alias(inner) => {
             format!(
-                "{}:{{type:'alias',inner:{}}}",
+                "{}:{{type:'alias',inner:{{{}}}}}",
                 name,
                 reflect_annotated_shape(&inner.shape)
             )
         }
         Model::External(inner) => {
             format!(
-                "{}:{{type:'external',inner:{}}}",
+                "{}:{{type:'external',inner:{{{}}}}}",
                 name,
                 reflect_annotated_shape(&inner.shape)
             )
