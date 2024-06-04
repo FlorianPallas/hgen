@@ -10,6 +10,12 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
     output.push_str("\n");
     output.push_str(&format!("import '{}.external.dart';\n", module_name));
     output.push_str("\n");
+    output.push_str("abstract class RequestHandler {\n");
+    output.push_str(
+        "  Future<dynamic> request(String service, String method, Map<String, dynamic> params);\n",
+    );
+    output.push_str("}\n");
+    output.push_str("\n");
 
     // emit models
     output.push_str(
@@ -17,6 +23,17 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
             .models
             .iter()
             .map(|(name, def)| emit_model(name, def))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    output.push_str("\n");
+
+    // emit consumers
+    output.push_str(
+        &schema
+            .services
+            .iter()
+            .map(|(name, shape)| emit_consumer(name, shape))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -44,6 +61,67 @@ pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
             .join("\n"),
     );
     output.push_str("\n");
+    output.push_str("\n");
+
+    output
+}
+
+fn emit_consumer(name: &str, service: &Service) -> String {
+    let mut output = String::new();
+
+    output.push_str(&format!("class {}Consumer ", name));
+    output.push_str("{\n\n");
+    output.push_str("  final RequestHandler handler;\n");
+    output.push_str(&format!("  final String name = \"{}\";", name));
+    output.push_str("\n\n");
+    output.push_str(&format!("  {}Consumer(this.handler);\n", name));
+    output.push_str("\n");
+
+    output.push_str(
+        &service
+            .methods
+            .iter()
+            .map(emit_consumer_method)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    output.push_str("}\n");
+
+    output
+}
+
+fn emit_consumer_method(method: &Method) -> String {
+    let mut output = String::new();
+
+    output.push_str(&format!(
+        "  Future<{}> {}({}) async {{\n",
+        emit_shape(&method.output),
+        method.name,
+        method
+            .inputs
+            .iter()
+            .map(|(name, shape)| format!("{} {}", emit_shape(shape), name))
+            .collect::<Vec<_>>()
+            .join(", "),
+    ));
+    output.push_str(&format!(
+        "    var response = await handler.request(name, \"{}\", <String, dynamic> {{ {} }});\n{}",
+        method.name,
+        method
+            .inputs
+            .iter()
+            .map(|(name, _)| format!("\"{}\": {}", name, name))
+            .collect::<Vec<_>>()
+            .join(", "),
+        match *method.output {
+            Shape::Primitive(Primitive::Unit) => "".to_owned(),
+            _ => format!(
+                "    return {};\n",
+                deserialize_shape("response", &method.output)
+            ),
+        },
+    ));
+    output.push_str("  }\n");
 
     output
 }
