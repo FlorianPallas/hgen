@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2024-06-04
+
+### Features
+
+- add integer types from 8 to 128 bit precision
+
+### Fixes
+
+- *(typescript)* wrap nullable expressions in parenthesis, to prevent incorrect types being generated in certain cases
+- *(typescript)* fix alias reflection generation
+- make parser ignore if the last field of an object does not have a comma after it
+
+### Refactor
+
+- remove set primitive
+- use ordered map for struct and enum fields, as well as service methods
+- switch back to asking for an output path, so the output location can be set by the user
+
 ## [0.4.0] - 2024-06-02
 
 ### Features
@@ -30,6 +48,7 @@ All notable changes to this project will be documented in this file.
 
 - add build command to build script
 - use lowercase text in changelog
+- *(release)* release 0.4.0
 
 ## [0.3.0] - 2024-05-30
 
