@@ -103,6 +103,18 @@ impl Context {
             })
         })?
     }
+
+    pub fn pop_string_literal(&mut self) -> Result<String, ParseError> {
+        self.pop_strict().map(|token| {
+            match token {
+                Token::StringLiteral(value) => Some(value),
+                _ => None,
+            }
+            .ok_or(ParseError::UnexpectedToken {
+                expected: Token::StringLiteral("".to_owned()),
+            })
+        })?
+    }
 }
 
 fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
@@ -185,10 +197,18 @@ fn parse_service(context: &mut Context) -> Result<(String, Service), ParseError>
 
         let output = parse_annotated_shape(context)?;
 
-        methods.push(Method {
-            name,
-            inputs,
-            output,
+        let mut metadata = OrderedHashMap::new();
+        if context.peek() == Some(&Token::OpenBrace) {
+            parse_metadata(context, &mut metadata)?;
+        }
+
+        methods.push(Annotated {
+            inner: Method {
+                name,
+                inputs,
+                output,
+            },
+            metadata,
         });
 
         if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
@@ -282,23 +302,9 @@ fn parse_annotated_shape(context: &mut Context) -> Result<Annotated<Shape>, Pars
         }
     }
 
-    let mut data = OrderedHashMap::new();
+    let mut metadata = OrderedHashMap::new();
     if context.pop_if(Token::Ampersand).is_some() {
-        context.pop_exact(Token::OpenBrace)?;
-
-        loop {
-            let key = context.pop_identifier()?;
-            context.pop_exact(Token::Colon)?;
-            let value = context.pop_identifier()?;
-            data.insert(key, value);
-
-            if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace)
-            {
-                break;
-            }
-        }
-
-        context.pop_exact(Token::CloseBrace)?;
+        parse_metadata(context, &mut metadata)?;
     }
 
     let mut shape = parse_shape(name, args);
@@ -306,7 +312,32 @@ fn parse_annotated_shape(context: &mut Context) -> Result<Annotated<Shape>, Pars
         shape = Shape::Nullable(Box::new(shape));
     }
 
-    Ok(Annotated::new(shape, data))
+    Ok(Annotated {
+        inner: shape,
+        metadata,
+    })
+}
+
+fn parse_metadata(
+    context: &mut Context,
+    data: &mut OrderedHashMap<String, String>,
+) -> Result<(), ParseError> {
+    context.pop_exact(Token::OpenBrace)?;
+
+    loop {
+        let key = context.pop_identifier()?;
+        context.pop_exact(Token::Colon)?;
+        let value = context.pop_string_literal()?;
+        data.insert(key, value);
+
+        if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
+            break;
+        }
+    }
+
+    context.pop_exact(Token::CloseBrace)?;
+
+    Ok(())
 }
 
 fn parse_shape(name: String, args: Vec<String>) -> Shape {

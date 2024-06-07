@@ -1,4 +1,4 @@
-use crate::lang::schema::*;
+use crate::lang::{map::OrderedHashMap, schema::*};
 
 pub fn emit_schema(file_name: &str, schema: &Schema) -> String {
     let mut output = String::new();
@@ -68,19 +68,20 @@ fn emit_provider(name: &str, service: &Service) -> String {
     output
 }
 
-fn emit_provider_method(method: &Method) -> String {
+fn emit_provider_method(method: &Annotated<Method>) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
         "  {}({}): Promise<{}>;\n",
-        method.name,
+        method.inner.name,
         method
+            .inner
             .inputs
             .iter()
             .map(|(name, shape)| format!("{}: {}", name, emit_shape(shape)))
             .collect::<Vec<_>>()
             .join(", "),
-        emit_shape(&method.output)
+        emit_shape(&method.inner.output)
     ));
 
     output
@@ -107,24 +108,26 @@ fn emit_consumer(name: &str, service: &Service) -> String {
     output
 }
 
-fn emit_consumer_method(method: &Method) -> String {
+fn emit_consumer_method(method: &Annotated<Method>) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
         "  {}({}): Promise<{}> {{\n",
-        method.name,
+        method.inner.name,
         method
+            .inner
             .inputs
             .iter()
             .map(|(name, shape)| format!("{}: {}", name, emit_shape(shape)))
             .collect::<Vec<_>>()
             .join(", "),
-        emit_shape(&method.output)
+        emit_shape(&method.inner.output)
     ));
     output.push_str(&format!(
         "    return this.request(\"{}\", {{ {} }});\n",
-        method.name,
+        method.inner.name,
         method
+            .inner
             .inputs
             .iter()
             .map(|(name, _)| name.as_str())
@@ -219,16 +222,18 @@ fn reflect_service(name: &str, def: &Service) -> String {
     output
 }
 
-fn reflect_method(def: &Method) -> String {
+fn reflect_method(def: &Annotated<Method>) -> String {
     format!(
-        "{}:{{inputs:{{{}}},output:{{{}}}}}",
-        def.name,
-        def.inputs
+        "{}:{{inputs:{{{}}},output:{{{}}},metadata:{{{}}}}}",
+        def.inner.name,
+        def.inner
+            .inputs
             .iter()
             .map(|(name, shape)| format!("{}:{{{}}}", name, reflect_annotated_shape(shape)))
             .collect::<Vec<_>>()
             .join(","),
-        reflect_annotated_shape(&def.output)
+        reflect_annotated_shape(&def.inner.output),
+        reflect_metadata(&def.metadata),
     )
 }
 
@@ -274,15 +279,18 @@ fn reflect_shape(shape: &Shape) -> String {
 
 fn reflect_annotated_shape(shape: &Annotated<Shape>) -> String {
     format!(
-        "{},data:{{{}}}",
+        "{},metadata:{{{}}}",
         reflect_shape(shape),
-        shape
-            .data
-            .iter()
-            .map(|(k, v)| format!("{}:'{}'", k, v))
-            .collect::<Vec<_>>()
-            .join(","),
+        reflect_metadata(&shape.metadata),
     )
+}
+
+fn reflect_metadata(metadata: &OrderedHashMap<String, String>) -> String {
+    metadata
+        .iter()
+        .map(|(k, v)| format!("{}:'{}'", k, v))
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn emit_alias(name: &str, alias: &Alias) -> String {

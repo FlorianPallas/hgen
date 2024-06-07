@@ -90,14 +90,15 @@ fn emit_consumer(name: &str, service: &Service) -> String {
     output
 }
 
-fn emit_consumer_method(method: &Method) -> String {
+fn emit_consumer_method(method: &Annotated<Method>) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
         "  Future<{}> {}({}) async {{\n",
-        emit_shape(&method.output),
-        method.name,
+        emit_shape(&method.inner.output),
+        method.inner.name,
         method
+            .inner
             .inputs
             .iter()
             .map(|(name, shape)| format!("{} {}", emit_shape(shape), name))
@@ -106,18 +107,19 @@ fn emit_consumer_method(method: &Method) -> String {
     ));
     output.push_str(&format!(
         "    var response = await handler.request(name, \"{}\", <String, dynamic> {{ {} }});\n{}",
-        method.name,
+        method.inner.name,
         method
+            .inner
             .inputs
             .iter()
             .map(|(name, _)| format!("\"{}\": {}", name, name))
             .collect::<Vec<_>>()
             .join(", "),
-        match *method.output {
+        match *method.inner.output {
             Shape::Primitive(Primitive::Unit) => "".to_owned(),
             _ => format!(
                 "    return {};\n",
-                deserialize_shape("response", &method.output)
+                deserialize_shape("response", &method.inner.output)
             ),
         },
     ));

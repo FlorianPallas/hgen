@@ -1,4 +1,4 @@
-use crate::lang::schema::*;
+use crate::lang::{map::OrderedHashMap, schema::*};
 
 pub fn emit_schema(_name: &str, schema: &Schema) -> String {
     let mut output = String::new();
@@ -52,7 +52,7 @@ fn emit_struct(name: &str, def: &Struct) -> String {
         "\"fields\":{{{}}}",
         def.fields
             .iter()
-            .map(|(name, shape)| { format!("\"{}\":{}", name, emit_shape(shape)) })
+            .map(|(name, shape)| { format!("\"{}\":{{{}}}", name, emit_annotated_shape(shape)) })
             .collect::<Vec<_>>()
             .join(",")
     ));
@@ -84,36 +84,49 @@ fn emit_enum(name: &str, def: &Enum) -> String {
 
 fn emit_alias(name: &str, alias: &Alias) -> String {
     format!(
-        "\"{}\":{{\"type\":\"Alias\",\"inner\":{}}}",
+        "\"{}\":{{\"type\":\"Alias\",\"inner\":{{{}}}}}",
         name,
-        emit_shape(&alias.shape)
+        emit_annotated_shape(&alias.shape)
     )
 }
 
 fn emit_external(name: &str, external: &External) -> String {
     format!(
-        "\"{}\":{{\"type\":\"External\",\"inner\":{}}}",
+        "\"{}\":{{\"type\":\"External\",\"inner\":{{{}}}}}",
         name,
-        emit_shape(&external.shape)
+        emit_annotated_shape(&external.shape)
     )
 }
 
 fn emit_shape(shape: &Shape) -> String {
     match shape {
         Shape::Primitive(primitive) => {
-            format!("{{\"type\":\"{}\"}}", primitive.to_string())
+            format!("\"type\":\"{}\"", primitive.to_string())
         }
         Shape::Nullable(inner) => {
-            format!("{{\"type\":\"Nullable\",\"inner\":{}}}", emit_shape(inner))
+            format!("\"type\":\"Nullable\",\"inner\":{{{}}}", emit_shape(inner))
         }
-        Shape::List(inner) => format!("{{\"type\":\"List\",\"inner\":{}}}", emit_shape(inner)),
+        Shape::List(inner) => format!("\"type\":\"List\",\"inner\":{{{}}}", emit_shape(inner)),
         Shape::Map(key, value) => format!(
-            "{{\"type\":\"Map\",\"key\":{},\"value\":{}}}",
+            "\"type\":\"Map\",\"key\":{{{}}},\"value\":{{{}}}",
             emit_shape(key),
             emit_shape(value),
         ),
-        Shape::Reference(name) => format!("{{\"type\":\"Reference\",\"name\":\"{}\"}}", name),
+        Shape::Reference(name) => format!("\"type\":\"Reference\",\"name\":\"{}\"", name),
     }
+}
+
+fn emit_annotated_shape(shape: &Annotated<Shape>) -> String {
+    format!(
+        "{},\"metadata\":{{{}}}",
+        emit_shape(&shape.inner),
+        shape
+            .metadata
+            .iter()
+            .map(|(key, value)| format!("\"{}\":\"{}\"", key, value))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
 }
 
 fn emit_service(name: &str, service: &Service) -> String {
@@ -137,16 +150,28 @@ fn emit_service(name: &str, service: &Service) -> String {
     output
 }
 
-fn emit_method(method: &Method) -> String {
+fn emit_method(def: &Annotated<Method>) -> String {
     format!(
-        "\"{}\":{{\"inputs\":{{{}}},\"output\":{}}}",
-        method.name,
-        method
+        "\"{}\":{{\"inputs\":{{{}}},\"output\":{{{}}},\"metadata\":{}}}",
+        def.inner.name,
+        def.inner
             .inputs
             .iter()
-            .map(|(name, shape)| format!("\"{}\":{}", name, emit_shape(shape)))
+            .map(|(name, shape)| format!("\"{}\":{{{}}}", name, emit_annotated_shape(shape)))
             .collect::<Vec<_>>()
             .join(","),
-        emit_shape(&method.output)
+        emit_annotated_shape(&def.inner.output),
+        emit_metadata(&def.metadata),
+    )
+}
+
+fn emit_metadata(metadata: &OrderedHashMap<String, String>) -> String {
+    format!(
+        "{{{}}}",
+        metadata
+            .iter()
+            .map(|(key, value)| format!("\"{}\":\"{}\"", key, value))
+            .collect::<Vec<_>>()
+            .join(",")
     )
 }

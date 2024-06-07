@@ -33,7 +33,7 @@ impl Schema {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Service {
-    pub methods: Vec<Method>,
+    pub methods: Vec<Annotated<Method>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -99,23 +99,8 @@ pub struct Enum {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Annotated<T> {
-    inner: T,
-    pub data: OrderedHashMap<String, String>,
-}
-
-impl<T> Annotated<T> {
-    pub fn new(inner: T, data: OrderedHashMap<String, String>) -> Self {
-        Self { inner, data }
-    }
-}
-
-impl<T: Default> Default for Annotated<T> {
-    fn default() -> Self {
-        Self {
-            inner: T::default(),
-            data: Default::default(),
-        }
-    }
+    pub inner: T,
+    pub metadata: OrderedHashMap<String, String>,
 }
 
 impl Deref for Annotated<Shape> {
