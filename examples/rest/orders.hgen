@@ -1,0 +1,40 @@
+alias Id = String & { type: "uuid" };
+
+struct Product {
+  id: Id,
+  name: String,
+  price: Float32,
+  stock: Int32,
+}
+
+struct Order {
+  id: Id,
+  productId: Id,
+  amount: Int32,
+  status: OrderStatus,
+}
+
+enum OrderStatus {
+  PENDING,
+  CONFIRMED,
+  TRANSIT,
+  ARRIVED,
+}
+
+service OrderService {
+  create(productId: Id, amount: Id) -> Order {
+    endpoint: "POST /orders",
+    name: "Place Order",
+    description: "Orders the given amount of products.",
+  },
+  getById(id: Id) -> Order {
+    endpoint: "GET /orders/{id}",
+    name: "Get Order",
+    description: "Returns the order associated with the given id.",
+  },
+  getAllPending() -> List<Order> {
+    endpoint: "GET /orders/pending",
+    name: "Get All Pending Orders",
+    description: "Returns all pending orders.",
+  }
+}
