@@ -59,7 +59,7 @@ fn emit_provider(name: &str, service: &Service) -> String {
         &service
             .methods
             .iter()
-            .map(emit_provider_method)
+            .map(|(name, def)| emit_provider_method(name, def))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -68,12 +68,12 @@ fn emit_provider(name: &str, service: &Service) -> String {
     output
 }
 
-fn emit_provider_method(method: &Annotated<Method>) -> String {
+fn emit_provider_method(name: &str, method: &Annotated<ServiceMethod>) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
         "  {}({}): Promise<{}>;\n",
-        method.inner.name,
+        name,
         method
             .inner
             .inputs
@@ -81,7 +81,10 @@ fn emit_provider_method(method: &Annotated<Method>) -> String {
             .map(|(name, shape)| format!("{}: {}", name, emit_shape(shape)))
             .collect::<Vec<_>>()
             .join(", "),
-        emit_shape(&method.inner.output)
+        match method.inner.output {
+            Some(ref shape) => emit_shape(shape),
+            None => "void".to_owned(),
+        }
     ));
 
     output
@@ -99,7 +102,7 @@ fn emit_consumer(name: &str, service: &Service) -> String {
         &service
             .methods
             .iter()
-            .map(emit_consumer_method)
+            .map(|(name, def)| emit_consumer_method(name, def))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -108,12 +111,12 @@ fn emit_consumer(name: &str, service: &Service) -> String {
     output
 }
 
-fn emit_consumer_method(method: &Annotated<Method>) -> String {
+fn emit_consumer_method(name: &str, method: &Annotated<ServiceMethod>) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
         "  {}({}): Promise<{}> {{\n",
-        method.inner.name,
+        name,
         method
             .inner
             .inputs
@@ -121,16 +124,19 @@ fn emit_consumer_method(method: &Annotated<Method>) -> String {
             .map(|(name, shape)| format!("{}: {}", name, emit_shape(shape)))
             .collect::<Vec<_>>()
             .join(", "),
-        emit_shape(&method.inner.output)
+        match method.inner.output {
+            Some(ref shape) => emit_shape(shape),
+            None => "void".to_owned(),
+        }
     ));
     output.push_str(&format!(
         "    return this.request(\"{}\", {{ {} }});\n",
-        method.inner.name,
+        name,
         method
             .inner
             .inputs
             .iter()
-            .map(|(name, _)| name.as_str())
+            .map(|(name, _)| *name)
             .collect::<Vec<_>>()
             .join(", ")
     ));
@@ -212,7 +218,7 @@ fn reflect_service(name: &str, def: &Service) -> String {
         "methods:{{{}}}",
         def.methods
             .iter()
-            .map(reflect_method)
+            .map(|(name, def)| reflect_method(name, def))
             .collect::<Vec<_>>()
             .join(",")
     ));
@@ -222,17 +228,20 @@ fn reflect_service(name: &str, def: &Service) -> String {
     output
 }
 
-fn reflect_method(def: &Annotated<Method>) -> String {
+fn reflect_method(name: &str, def: &Annotated<ServiceMethod>) -> String {
     format!(
         "{}:{{inputs:{{{}}},output:{{{}}},metadata:{{{}}}}}",
-        def.inner.name,
+        name,
         def.inner
             .inputs
             .iter()
-            .map(|(name, shape)| format!("{}:{{{}}}", name, reflect_annotated_shape(shape)))
+            .map(|(name, shape)| format!("{}:{{{}}}", name, reflect_shape(shape)))
             .collect::<Vec<_>>()
             .join(","),
-        reflect_annotated_shape(&def.inner.output),
+        match def.inner.output {
+            Some(ref shape) => reflect_shape(shape),
+            None => "".to_owned(),
+        },
         reflect_metadata(&def.metadata),
     )
 }
@@ -251,7 +260,7 @@ fn reflect_struct(def: &Struct) -> String {
 fn reflect_enum(def: &Enum) -> String {
     format!(
         "type:'enum',fields:{{{}}}",
-        def.values
+        def.fields
             .iter()
             .map(|value| format!("{}:''", value))
             .collect::<Vec<_>>()
@@ -261,7 +270,14 @@ fn reflect_enum(def: &Enum) -> String {
 
 fn reflect_shape(shape: &Shape) -> String {
     match shape {
-        Shape::Primitive(inner) => format!("type:'{}'", inner.to_string().to_lowercase()),
+        Shape::Bool => "type:'bool'".to_owned(),
+        Shape::Int8 => "type:'int8'".to_owned(),
+        Shape::Int16 => "type:'int16'".to_owned(),
+        Shape::Int32 => "type:'int32'".to_owned(),
+        Shape::Int64 => "type:'int64'".to_owned(),
+        Shape::Float32 => "type:'float32'".to_owned(),
+        Shape::Float64 => "type:'float64'".to_owned(),
+        Shape::String => "type:'string'".to_owned(),
         Shape::Nullable(inner) => {
             format!("type:'nullable',inner:{{{}}}", reflect_shape(inner))
         }
@@ -280,21 +296,50 @@ fn reflect_shape(shape: &Shape) -> String {
 fn reflect_annotated_shape(shape: &Annotated<Shape>) -> String {
     format!(
         "{},metadata:{{{}}}",
-        reflect_shape(shape),
+        reflect_shape(&shape.inner),
         reflect_metadata(&shape.metadata),
     )
 }
 
-fn reflect_metadata(metadata: &OrderedHashMap<String, String>) -> String {
+fn reflect_metadata(metadata: &OrderedHashMap<&str, Literal>) -> String {
     metadata
         .iter()
-        .map(|(k, v)| format!("{}:'{}'", k, v))
+        .map(|(k, v)| format!("{}:{}", k, reflect_literal(v)))
         .collect::<Vec<_>>()
         .join(",")
 }
 
+fn reflect_literal(literal: &Literal) -> String {
+    match literal {
+        Literal::Bool(inner) => if *inner { "true" } else { "false" }.to_owned(),
+        Literal::String(inner) => format!("'{}'", inner),
+        Literal::Int(inner) => inner.to_string(),
+        Literal::Float(inner) => inner.to_string(),
+        Literal::Array(inner) => format!(
+            "[{}]",
+            inner
+                .iter()
+                .map(reflect_literal)
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+        Literal::Object(inner) => format!(
+            "{{{}}}",
+            inner
+                .iter()
+                .map(|(k, v)| format!("{}:{}", k, reflect_literal(v)))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    }
+}
+
 fn emit_alias(name: &str, alias: &Alias) -> String {
-    format!("export type {} = {};\n", name, emit_shape(&alias.shape))
+    format!(
+        "export type {} = {};\n",
+        name,
+        emit_shape(&alias.shape.inner)
+    )
 }
 
 fn emit_enum(name: &str, message: &Enum) -> String {
@@ -302,7 +347,7 @@ fn emit_enum(name: &str, message: &Enum) -> String {
 
     output.push_str(&format!("export enum {} ", name));
     output.push_str("{\n");
-    message.values.iter().for_each(|name| {
+    message.fields.iter().for_each(|name| {
         output.push_str(&format!("  {} = '{}',\n", name, name));
     });
     output.push_str("}\n");
@@ -316,7 +361,7 @@ fn emit_struct(name: &str, message: &Struct) -> String {
     output.push_str(&format!("export class {} ", name));
     output.push_str("{\n");
     message.fields.iter().for_each(|(name, shape)| {
-        output.push_str(&format!("  {}: {};\n", name, emit_shape(shape)));
+        output.push_str(&format!("  {}: {};\n", name, emit_shape(&shape.inner)));
     });
     output.push_str("}\n");
 
@@ -325,21 +370,17 @@ fn emit_struct(name: &str, message: &Struct) -> String {
 
 fn emit_shape(shape: &Shape) -> String {
     match shape {
-        Shape::Primitive(primitive) => match primitive {
-            Primitive::Unit { .. } => "void".to_owned(),
-            Primitive::Bool { .. } => "boolean".to_owned(),
-            Primitive::Int8 { .. } => "number".to_owned(),
-            Primitive::Int16 { .. } => "number".to_owned(),
-            Primitive::Int32 { .. } => "number".to_owned(),
-            Primitive::Int64 { .. } => "bigint".to_owned(),
-            Primitive::Int128 { .. } => "bigint".to_owned(),
-            Primitive::Float32 { .. } => "number".to_owned(),
-            Primitive::Float64 { .. } => "number".to_owned(),
-            Primitive::String { .. } => "string".to_owned(),
-        },
+        Shape::Bool { .. } => "boolean".to_owned(),
+        Shape::Int8 { .. } => "number".to_owned(),
+        Shape::Int16 { .. } => "number".to_owned(),
+        Shape::Int32 { .. } => "number".to_owned(),
+        Shape::Int64 { .. } => "bigint".to_owned(),
+        Shape::Float32 { .. } => "number".to_owned(),
+        Shape::Float64 { .. } => "number".to_owned(),
+        Shape::String { .. } => "string".to_owned(),
         Shape::Nullable(inner) => format!("({} | null)", emit_shape(inner)),
         Shape::List(inner) => format!("({}[])", emit_shape(inner)),
         Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),
-        Shape::Reference(name) => name.to_owned(),
+        Shape::Reference(name) => (*name).to_owned(),
     }
 }

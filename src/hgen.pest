@@ -1,0 +1,67 @@
+WHITESPACE        = _{ " " | "\t" | "\r" | "\n" }
+COMMENT           = _{ SingleLineComment | MultiLineComment }
+SingleLineComment =  { "//" ~ (!"\n" ~ ANY)* }
+MultiLineComment  =  { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+Identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT)* }
+
+Field     = { Identifier ~ ":" ~ Shape }
+FieldList = { Field ~ ("," ~ Field)* ~ ","? }
+
+Struct   = {
+    "struct" ~ Identifier ~ "{" ~ "}"
+  | "struct" ~ Identifier ~ "{" ~ FieldList ~ "}"
+}
+Enum     = {
+    "enum" ~ Identifier ~ "{" ~ "}"
+  | "enum" ~ Identifier ~ "{" ~ (Identifier ~ ",")* ~ "}"
+}
+External = { "external" ~ "alias" ~ Identifier ~ "=" ~ Shape ~ ";" }
+Alias    = { "alias" ~ Identifier ~ "=" ~ Shape ~ ";" }
+Service  = {
+    "service" ~ Identifier ~ "{" ~ ServiceMethod ~ ("," ~ ServiceMethod)+ ~ ","? ~ "}"
+}
+
+ServiceMethod = { Identifier ~ ServiceParameters ~ ("->" ~ Shape)? ~ ObjectLiteral? }
+
+ServiceParameters = {
+    "(" ~ ")"
+  | "(" ~ FieldList ~ ")"
+}
+
+Shape = { (BoolShape | Int8Shape | Int16Shape | Int32Shape | Int64Shape | Float32Shape | Float64Shape | StringShape | ListShape | MapShape | ReferenceShape) ~ (Nullable)? ~ ("&" ~ ObjectLiteral)? }
+
+Nullable       = { "?" }
+StringShape    = { "String" }
+BoolShape      = { "Bool" }
+Int8Shape      = { "Int8" }
+Int16Shape     = { "Int16" }
+Int32Shape     = { "Int32" }
+Int64Shape     = { "Int64" }
+Float32Shape   = { "Float32" }
+Float64Shape   = { "Float64" }
+ReferenceShape = { Identifier }
+ListShape      = { "List" ~ "<" ~ Shape ~ ">" }
+MapShape       = { "Map" ~ "<" ~ Shape ~ "," ~ Shape ~ ">" }
+
+Literal       = _{ BoolLiteral | FloatLiteral | IntLiteral | CharLiteral | StringLiteral | ArrayLiteral | ObjectLiteral }
+StringLiteral =  { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+BoolLiteral   =  { "true" | "false" }
+IntLiteral    =  { ASCII_DIGIT+ }
+FloatLiteral  =  { ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+CharLiteral   =  { "'" ~ (!"'" ~ ANY) ~ "'" }
+ArrayLiteral  =  {
+    "[" ~ "]"
+  | "[" ~ Literal ~ ("," ~ Literal)* ~ ","? ~ "]"
+}
+ObjectLiteral =  {
+    "{" ~ "}"
+  | "{" ~ LiteralFieldList ~ "}"
+}
+
+LiteralField     = _{ Identifier ~ ":" ~ Literal }
+LiteralFieldList = _{ LiteralField ~ ("," ~ LiteralField)* ~ ","? }
+
+Model =  { Struct | Enum | External | Alias }
+Body  = _{ Model | Service }
+hGEN  = _{ SOI ~ Body* ~ EOI }

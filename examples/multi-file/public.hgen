@@ -1,6 +1,0 @@
-use model;
-
-service PostService {
-  find() -> List<Post>,
-  findOne(slug: String) -> Post?,
-}

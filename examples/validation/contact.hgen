@@ -1,0 +1,43 @@
+alias Name = String & {
+  transform: [
+    { type: "trim" },
+    { type: "capitalize" },
+  ],
+  checks: [
+    { type: "length", min: 3, max: 20 }
+  ]
+};
+
+alias Telephone = String & {
+  transform: [
+    { type: "trim" },
+  ],
+  checks: [
+    { type: "regex", pattern: "^[0-9]{3}-[0-9]{3}-[0-9]{4}$" },
+  ]
+};
+
+alias Email = String & {
+  transform: [
+    { type: "trim" },
+    { type: "toLowerCase" },
+  ],
+  checks: [
+    { type: "includes", value: "@" },
+    { type: "regex", pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$" },
+  ]
+};
+
+struct ContactRequest {
+  name: Name,
+  email: Email,
+  telephone: Telephone,
+
+  message: String & {
+    checks: [{ type: "length", min: 10, max: 500 }]
+  },
+}
+
+service ContactService {
+  send(request: ContactRequest),
+}

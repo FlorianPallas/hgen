@@ -1,6 +1,6 @@
-extern alias Instant = String;
+external alias Instant = String;
 
-alias UUID = String & { type: uuid };
+alias UUID = String & { type: "uuid" };
 
 struct Todo {
   id: UUID,
@@ -22,5 +22,5 @@ service TodoService {
   get(id: UUID) -> Todo,
   getAll() -> List<Todo>,
   update(id: UUID, params: UpdateTodoParams) -> Todo,
-  delete(id: UUID) -> Unit,
+  delete(id: UUID),
 }

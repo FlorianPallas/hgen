@@ -6,8 +6,6 @@ use std::{fmt::Display, fs, path::Path, time::Instant};
 mod emit;
 mod lang;
 
-const FILE_EXTENSION: &str = "hgen";
-
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 #[command(propagate_version = true)]
@@ -26,42 +24,27 @@ fn main() -> anyhow::Result<()> {
     let started = Instant::now();
 
     let input_path = Path::new(&options.input).to_path_buf();
-    let input_dir = input_path.parent().unwrap();
     let input_file_name = input_path.file_stem().unwrap();
 
     let output_path = Path::new(&options.output).to_path_buf();
     let output_dir = output_path.parent().unwrap();
     let output_file_extension = output_path.extension().unwrap().to_str().unwrap();
 
-    let mut root = Schema::new();
-    let mut sources = vec![input_path.clone()];
+    let strategy = Strategy::parse(output_file_extension).expect("Unsupported output");
 
     println!("parsing schema");
-    while let Some(path) = sources.pop() {
-        println!("{}", style(path.display()).dim());
+    println!("{}", style(input_path.display()).dim());
 
-        let input = fs::read_to_string(&path).unwrap();
-        let tokens = lang::lexer::get_tokens(&input);
-        let schema = lang::parser::get_schema(tokens)?;
-
-        sources.extend(
-            schema
-                .imports
-                .iter()
-                .map(|name| input_dir.join(name).with_extension(FILE_EXTENSION)),
-        );
-
-        root.extend(schema);
-    }
-
-    let strategy = Strategy::parse(output_file_extension).expect("Unsupported output");
+    let source = fs::read_to_string(&input_path)?;
+    let schema = Schema::parse(&source);
+    println!("{:?}", schema);
+    let output = strategy.emit(input_file_name.to_str().unwrap(), &schema);
 
     println!("emitting {} code", style(&strategy).cyan().bold());
     println!("{}", style(output_path.display()).dim());
 
-    let output = strategy.emit(input_file_name.to_str().unwrap(), &root);
     fs::create_dir_all(output_dir).unwrap();
-    fs::write(output_path, output).unwrap();
+    fs::write(&output_path, output).unwrap();
 
     println!("done in {}μs", started.elapsed().as_micros());
 
@@ -82,7 +65,7 @@ impl Strategy {
             Strategy::Rust => emit::rs::emit_schema(name, &schema),
             Strategy::TypeScript => emit::ts::emit_schema(name, &schema),
             Strategy::Dart => emit::dart::emit_schema(name, &schema),
-            Strategy::JSON => emit::json::emit_schema(name, &schema),
+            _ => panic!("unsupported strategy: {:?}", self),
         }
     }
 

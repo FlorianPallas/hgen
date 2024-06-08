@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use crate::lang::schema::*;
 
 pub fn emit_schema(module_name: &str, schema: &Schema) -> String {
@@ -81,7 +79,7 @@ fn emit_consumer(name: &str, service: &Service) -> String {
         &service
             .methods
             .iter()
-            .map(emit_consumer_method)
+            .map(|(name, def)| emit_consumer_method(name, def))
             .collect::<Vec<_>>()
             .join("\n"),
     );
@@ -90,13 +88,16 @@ fn emit_consumer(name: &str, service: &Service) -> String {
     output
 }
 
-fn emit_consumer_method(method: &Annotated<Method>) -> String {
+fn emit_consumer_method(name: &str, method: &Annotated<ServiceMethod>) -> String {
     let mut output = String::new();
 
     output.push_str(&format!(
         "  Future<{}> {}({}) async {{\n",
-        emit_shape(&method.inner.output),
-        method.inner.name,
+        match method.inner.output {
+            None => "void".to_owned(),
+            Some(ref shape) => emit_shape(shape),
+        },
+        name,
         method
             .inner
             .inputs
@@ -107,7 +108,7 @@ fn emit_consumer_method(method: &Annotated<Method>) -> String {
     ));
     output.push_str(&format!(
         "    var response = await handler.request(name, \"{}\", <String, dynamic> {{ {} }});\n{}",
-        method.inner.name,
+        name,
         method
             .inner
             .inputs
@@ -115,12 +116,9 @@ fn emit_consumer_method(method: &Annotated<Method>) -> String {
             .map(|(name, _)| format!("\"{}\": {}", name, name))
             .collect::<Vec<_>>()
             .join(", "),
-        match *method.inner.output {
-            Shape::Primitive(Primitive::Unit) => "".to_owned(),
-            _ => format!(
-                "    return {};\n",
-                deserialize_shape("response", &method.inner.output)
-            ),
+        match method.inner.output {
+            None => "".to_owned(),
+            Some(ref shape) => format!("    return {};\n", deserialize_shape("response", shape)),
         },
     ));
     output.push_str("  }\n");
@@ -129,7 +127,7 @@ fn emit_consumer_method(method: &Annotated<Method>) -> String {
 }
 
 fn emit_alias(name: &str, alias: &Alias) -> String {
-    format!("typedef {} = {};\n", name, emit_shape(&alias.shape))
+    format!("typedef {} = {};\n", name, emit_shape(&alias.shape.inner))
 }
 
 fn emit_model(name: &str, def: &Model) -> String {
@@ -150,7 +148,7 @@ fn emit_enum(name: &str, def: &Enum) -> String {
 
     // Emit variants
     output.push_str(
-        &def.values
+        &def.fields
             .iter()
             .map(|v| format!("  {}", v))
             .collect::<Vec<_>>()
@@ -181,14 +179,14 @@ fn emit_struct(name: &str, def: &Struct) -> String {
 
     // Emit fields
     def.fields.iter().for_each(|(name, shape)| {
-        output.push_str(&format!("  {} {};\n", emit_shape(shape), name));
+        output.push_str(&format!("  {} {};\n", emit_shape(&shape.inner), name));
     });
     output.push_str("\n");
 
     // Emit constructor
     output.push_str(format!("  {}({{\n", name).as_str());
     def.fields.iter().for_each(|(name, shape)| {
-        let optional = match shape.deref() {
+        let optional = match shape.inner {
             Shape::Nullable(_) => true,
             _ => false,
         };
@@ -221,23 +219,18 @@ fn emit_struct(name: &str, def: &Struct) -> String {
 
 fn emit_shape(shape: &Shape) -> String {
     match shape {
-        Shape::Primitive(primitive) => match primitive {
-            Primitive::Unit { .. } => "void",
-            Primitive::Bool { .. } => "bool",
-            Primitive::Int8 { .. } => "int",
-            Primitive::Int16 { .. } => "int",
-            Primitive::Int32 { .. } => "int",
-            Primitive::Int64 { .. } => "int",
-            Primitive::Int128 { .. } => todo!("Int128 not supported"),
-            Primitive::Float32 { .. } => "double",
-            Primitive::Float64 { .. } => "double",
-            Primitive::String { .. } => "String",
-        }
-        .to_owned(),
+        Shape::Bool => "bool".to_owned(),
+        Shape::Int8 => "int".to_owned(),
+        Shape::Int16 => "int".to_owned(),
+        Shape::Int32 => "int".to_owned(),
+        Shape::Int64 => "int".to_owned(),
+        Shape::Float32 => "double".to_owned(),
+        Shape::Float64 => "double".to_owned(),
+        Shape::String => "String".to_owned(),
         Shape::Nullable(inner) => format!("{}?", emit_shape(inner)),
         Shape::List(inner) => format!("List<{}>", emit_shape(inner)),
         Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),
-        Shape::Reference(name) => name.to_owned(),
+        Shape::Reference(name) => (*name).to_owned(),
     }
 }
 
@@ -279,7 +272,7 @@ fn serialize_struct(name: &str, def: &Struct) -> String {
                 format!(
                     "'{}':{}",
                     name,
-                    serialize_shape(&format!("instance.{}", name), shape)
+                    serialize_shape(&format!("instance.{}", name), &shape.inner)
                 )
             })
             .collect::<Vec<_>>()
@@ -296,7 +289,7 @@ fn serialize_enum(name: &str, def: &Enum) -> String {
     output.push_str(&format!("dynamic ${}ToJson({} instance)=>", name, name));
     output.push_str("switch(instance){");
     output.push_str(
-        &def.values
+        &def.fields
             .iter()
             .map(|v| format!("{}.{}=>'{}'", name, v, v))
             .collect::<Vec<_>>()
@@ -313,7 +306,7 @@ fn deserialize_enum(name: &str, def: &Enum) -> String {
     output.push_str(&format!("{} ${}FromJson(String value)=>", name, name));
     output.push_str("switch(value){");
     output.push_str(
-        &def.values
+        &def.fields
             .iter()
             .map(|v| format!("'{}'=>{}.{},", v, name, v))
             .collect::<Vec<_>>()
@@ -330,7 +323,7 @@ fn serialize_alias(name: &str, alias: &Alias) -> String {
         "dynamic ${}ToJson({} instance) => {};",
         name,
         name,
-        serialize_shape("instance", &alias.shape)
+        serialize_shape("instance", &alias.shape.inner)
     )
 }
 
@@ -339,7 +332,7 @@ fn deserialize_alias(name: &str, alias: &Alias) -> String {
         "{} ${}FromJson(dynamic json) => {};",
         name,
         name,
-        deserialize_shape("json", &alias.shape)
+        deserialize_shape("json", &alias.shape.inner)
     )
 }
 
@@ -357,7 +350,7 @@ fn deserialize_struct(name: &str, def: &Struct) -> String {
                 format!(
                     "{}:{}",
                     name,
-                    deserialize_shape(&format!("json['{}']", name), shape)
+                    deserialize_shape(&format!("json['{}']", name), &shape.inner)
                 )
             })
             .collect::<Vec<_>>()
@@ -384,7 +377,14 @@ fn serialize_shape(name: &str, shape: &Shape) -> String {
 
 fn deserialize_shape(field_name: &str, shape: &Shape) -> String {
     match shape {
-        Shape::Primitive(_) => format!("{} as {}", field_name, emit_shape(shape)),
+        Shape::Bool => format!("{} as bool", field_name),
+        Shape::Int8 => format!("{} as int", field_name),
+        Shape::Int16 => format!("{} as int", field_name),
+        Shape::Int32 => format!("{} as int", field_name),
+        Shape::Int64 => format!("{} as int", field_name),
+        Shape::Float32 => format!("{} as double", field_name),
+        Shape::Float64 => format!("{} as double", field_name),
+        Shape::String => format!("{} as String", field_name),
         Shape::Nullable(inner) => format!(
             "{} == null ? null : {}",
             field_name,

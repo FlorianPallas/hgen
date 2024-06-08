@@ -1,14 +1,18 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct OrderedHashMap<K, V>
 where
     K: Hash + Eq + Clone,
 {
     inner: HashMap<K, V>,
     order: Vec<K>,
+}
+
+impl<K: Debug + Hash + Eq + Clone, V: Debug> Debug for OrderedHashMap<K, V> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
 }
 
 impl<K: Hash + Eq + Clone, V> Default for OrderedHashMap<K, V> {
@@ -35,9 +39,14 @@ impl<K: Hash + Eq + Clone, V> OrderedHashMap<K, V> {
             .iter()
             .map(move |key| (key, self.inner.get(key).unwrap()))
     }
+}
 
-    pub fn extend(&mut self, other: Self) {
-        self.inner.extend(other.inner);
-        self.order.extend(other.order);
+impl<K: Hash + Eq + Clone, V> FromIterator<(K, V)> for OrderedHashMap<K, V> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut map = Self::new();
+        for (k, v) in iter {
+            map.insert(k, v);
+        }
+        map
     }
 }

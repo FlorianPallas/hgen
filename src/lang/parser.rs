@@ -1,366 +1,238 @@
-use console::style;
-use std::{iter::Peekable, vec::IntoIter};
-use thiserror::Error;
+use super::{map::OrderedHashMap, schema::*};
+use pest::{iterators::Pair, Parser};
+use pest_derive::Parser;
 
-use super::lexer::{Keyword, Token};
-use super::map::OrderedHashMap;
-use super::schema::*;
+#[derive(Parser)]
+#[grammar = "hgen.pest"]
+pub struct SchemaParser;
 
-#[derive(Error, Debug)]
-pub enum ParseError {
-    #[error("Unexpected end of input at token")]
-    NoToken,
-    #[error("Unexpected token, expected {expected:?}")]
-    UnexpectedToken { expected: Token },
-}
-
-pub fn get_schema(tokens: Vec<Token>) -> Result<Schema, ParseError> {
-    let mut context = Context::new(tokens.clone());
-
-    let schema = parse_schema(&mut context);
-    if let Err(_err) = &schema {
-        print_parse_debug(&tokens, context.index - 1);
-    }
-
-    schema
-}
-
-fn print_parse_debug(tokens: &Vec<Token>, index: usize) {
-    let out = tokens
-        .iter()
-        .enumerate()
-        .map(|(i, token)| {
-            format!(
-                "{:?}",
-                if i == index {
-                    style(token).red()
-                } else {
-                    style(token).dim()
-                }
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    println!("{}", out);
-}
-
-struct Context {
-    iter: Peekable<IntoIter<Token>>,
-    index: usize,
-}
-
-impl Context {
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Context {
-            iter: tokens.into_iter().peekable(),
-            index: 0,
-        }
-    }
-}
-
-impl Context {
-    pub fn peek(&mut self) -> Option<&Token> {
-        self.iter.peek()
-    }
-
-    pub fn pop(&mut self) -> Option<Token> {
-        let token = self.iter.next()?;
-        self.index += 1;
-        Some(token)
-    }
-
-    pub fn pop_if(&mut self, token: Token) -> Option<Token> {
-        if self.peek().filter(|t| **t == token).is_some() {
-            self.pop()
-        } else {
-            None
-        }
-    }
-
-    pub fn pop_strict(&mut self) -> Result<Token, ParseError> {
-        self.pop().ok_or(ParseError::NoToken)
-    }
-
-    pub fn pop_exact(&mut self, token: Token) -> Result<Token, ParseError> {
-        self.pop_strict().map(|actual| {
-            if actual == token {
-                Ok(actual)
-            } else {
-                Err(ParseError::UnexpectedToken { expected: token })
-            }
-        })?
-    }
-
-    pub fn pop_identifier(&mut self) -> Result<String, ParseError> {
-        self.pop_strict().map(|token| {
-            match token {
-                Token::Identifier(value) => Some(value),
-                _ => None,
-            }
-            .ok_or(ParseError::UnexpectedToken {
-                expected: Token::Identifier("".to_owned()),
-            })
-        })?
-    }
-
-    pub fn pop_string_literal(&mut self) -> Result<String, ParseError> {
-        self.pop_strict().map(|token| {
-            match token {
-                Token::StringLiteral(value) => Some(value),
-                _ => None,
-            }
-            .ok_or(ParseError::UnexpectedToken {
-                expected: Token::StringLiteral("".to_owned()),
-            })
-        })?
-    }
-}
-
-fn parse_schema(context: &mut Context) -> Result<Schema, ParseError> {
-    let mut imports = Vec::new();
+pub fn parse_schema(source: &str) -> Schema {
+    let mut pairs = SchemaParser::parse(Rule::hGEN, source).unwrap();
     let mut models = OrderedHashMap::new();
     let mut services = OrderedHashMap::new();
 
-    loop {
-        if let Some(token) = context.peek() {
-            match token {
-                Token::Keyword(Keyword::Use) => {
-                    context.pop_exact(Token::Keyword(Keyword::Use))?;
-                    imports.push(context.pop_identifier()?);
-                    context.pop_exact(Token::SemiColon)?;
-                }
-                Token::Keyword(Keyword::Struct) => {
-                    let (name, def) = parse_struct(context)?;
-                    models.insert(name, def.into());
-                }
-                Token::Keyword(Keyword::Enum) => {
-                    let (name, def) = parse_enum(context)?;
-                    models.insert(name, def.into());
-                }
-                Token::Keyword(Keyword::Alias) => {
-                    let (name, def) = parse_alias(context)?;
-                    models.insert(name, def.into());
-                }
-                Token::Keyword(Keyword::Extern) => {
-                    let (name, def) = parse_extern_type(context)?;
-                    models.insert(name, def.into());
-                }
-                Token::Keyword(Keyword::Service) => {
-                    let (name, def) = parse_service(context)?;
-                    services.insert(name, def);
-                }
-                _ => {
-                    return Err(ParseError::UnexpectedToken {
-                        expected: token.clone(),
-                    })
-                }
+    while let Some(pair) = pairs.next() {
+        match pair.as_rule() {
+            Rule::Model => {
+                let model_pair = pair.into_inner().next().unwrap();
+                let (name, model) = parse_model(model_pair);
+                models.insert(name, model);
             }
-        } else {
-            break;
+            Rule::Service => {
+                let (name, service) = parse_service(pair);
+                services.insert(name, service);
+            }
+            Rule::EOI => break,
+            _ => panic!("unexpected top-level rule: {:?}", pair.as_rule()),
         }
     }
 
-    Ok(Schema {
-        imports,
-        models,
-        services,
-    })
+    Schema { models, services }
 }
 
-fn parse_service(context: &mut Context) -> Result<(String, Service), ParseError> {
-    context.pop_exact(Token::Keyword(Keyword::Service))?;
-    let name = context.pop_identifier()?;
-    context.pop_exact(Token::OpenBrace)?;
-
-    let mut methods = Vec::new();
-
-    loop {
-        let name = context.pop_identifier()?;
-        context.pop_exact(Token::OpenParen)?;
-
-        let mut inputs = OrderedHashMap::new();
-        loop {
-            if context.pop_if(Token::CloseParen).is_some() {
-                break;
-            }
-
-            let name = context.pop_identifier()?;
-            context.pop_exact(Token::Colon)?;
-            let def = parse_annotated_shape(context)?;
-            inputs.insert(name, def);
-            context.pop_if(Token::Comma);
+fn parse_model(pair: Pair<Rule>) -> (&str, Model) {
+    match pair.as_rule() {
+        Rule::Struct => {
+            let (name, def) = parse_struct(pair);
+            (name, Model::Struct(def))
         }
-
-        context.pop_exact(Token::Dash)?;
-        context.pop_exact(Token::AngleBracketClose)?;
-
-        let output = parse_annotated_shape(context)?;
-
-        let mut metadata = OrderedHashMap::new();
-        if context.peek() == Some(&Token::OpenBrace) {
-            parse_metadata(context, &mut metadata)?;
+        Rule::Enum => {
+            let (name, def) = parse_enum(pair);
+            (name, Model::Enum(def))
         }
+        Rule::Alias => {
+            let (name, def) = parse_alias(pair);
+            (name, Model::Alias(def))
+        }
+        Rule::External => {
+            let (name, def) = parse_external(pair);
+            (name, Model::External(def))
+        }
+        _ => panic!("unexpected model rule: {:?}", pair.as_rule()),
+    }
+}
 
-        methods.push(Annotated {
-            inner: Method {
-                name,
-                inputs,
-                output,
-            },
+fn parse_service(pair: Pair<Rule>) -> (&str, Service) {
+    let mut pairs = pair.into_inner();
+
+    let name = pairs.next().unwrap().as_str();
+
+    let methods = pairs
+        .map(parse_service_method)
+        .collect::<OrderedHashMap<_, _>>();
+
+    (name, Service { methods })
+}
+
+fn parse_service_method(pair: Pair<Rule>) -> (&str, Annotated<ServiceMethod>) {
+    let mut pairs: pest::iterators::Pairs<Rule> = pair.into_inner();
+
+    let name = pairs.next().unwrap().as_str();
+
+    let inputs = pairs
+        .next()
+        .unwrap()
+        .into_inner()
+        .map(|pair| {
+            pair.into_inner().map(|p| {
+                let mut pairs = p.into_inner();
+
+                let name = pairs.next().unwrap().as_str();
+                let shape = parse_shape(pairs.next().unwrap());
+                (name, shape)
+            })
+        })
+        .flatten()
+        .collect::<OrderedHashMap<_, _>>();
+
+    let output = pairs.next().map(parse_shape);
+
+    let metadata = pairs
+        .next()
+        .map(|pair| match parse_literal(pair) {
+            Literal::Object(fields) => Some(fields),
+            _ => panic!("unexpected metadata literal"),
+        })
+        .flatten()
+        .unwrap_or_default();
+
+    (
+        name,
+        Annotated {
+            inner: ServiceMethod { inputs, output },
             metadata,
-        });
+        },
+    )
+}
 
-        if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
-            break;
+fn parse_struct(pair: Pair<Rule>) -> (&str, Struct) {
+    let mut pairs = pair.into_inner();
+
+    let name = pairs.next().unwrap().as_str();
+
+    let fields = pairs
+        .next()
+        .unwrap()
+        .into_inner()
+        .map(|pair| {
+            let mut pairs = pair.into_inner();
+            let name = pairs.next().unwrap().as_str();
+            let shape = parse_annotated_shape(pairs.next().unwrap());
+            (name, shape)
+        })
+        .collect::<OrderedHashMap<_, _>>();
+
+    (name, Struct { fields })
+}
+
+fn parse_enum(pair: Pair<Rule>) -> (&str, Enum) {
+    let mut pairs = pair.into_inner();
+
+    let name = pairs.next().unwrap().as_str();
+    let fields = pairs.map(|pair| pair.as_str()).collect::<Vec<_>>();
+
+    (name, Enum { fields })
+}
+
+fn parse_alias(pair: Pair<Rule>) -> (&str, Alias) {
+    let mut pairs = pair.into_inner();
+
+    let name = pairs.next().unwrap().as_str();
+    let shape = parse_annotated_shape(pairs.next().unwrap());
+
+    (name, Alias { shape })
+}
+
+fn parse_external(pair: Pair<Rule>) -> (&str, External) {
+    let mut pairs = pair.into_inner();
+
+    let name = pairs.next().unwrap().as_str();
+    let shape = parse_annotated_shape(pairs.next().unwrap());
+
+    (name, External { shape })
+}
+
+fn parse_shape(pair: Pair<Rule>) -> Shape {
+    parse_annotated_shape(pair).inner
+}
+
+fn parse_annotated_shape(pair: Pair<Rule>) -> Annotated<Shape> {
+    let mut pairs = pair.into_inner();
+
+    let shape_pair = pairs.next().unwrap();
+    let shape = match shape_pair.as_rule() {
+        Rule::BoolShape => Shape::Bool,
+        Rule::Int8Shape => Shape::Int8,
+        Rule::Int16Shape => Shape::Int16,
+        Rule::Int32Shape => Shape::Int32,
+        Rule::Int64Shape => Shape::Int64,
+        Rule::Float32Shape => Shape::Float32,
+        Rule::Float64Shape => Shape::Float64,
+        Rule::StringShape => Shape::String,
+        Rule::ListShape => {
+            let mut pairs = shape_pair.into_inner();
+            let shape = parse_shape(pairs.next().unwrap());
+            Shape::List(Box::new(shape))
+        }
+        Rule::MapShape => {
+            let mut pairs = shape_pair.into_inner();
+            let key_shape = parse_shape(pairs.next().unwrap());
+            let value_shape = parse_shape(pairs.next().unwrap());
+            Shape::Map(Box::new(key_shape), Box::new(value_shape))
+        }
+        Rule::ReferenceShape => Shape::Reference(shape_pair.as_str()),
+        _ => panic!("unexpected shape rule: {:?}", shape_pair.as_rule()),
+    };
+
+    let mut is_nullable = false;
+    let mut metadata = None;
+
+    while let Some(pair) = pairs.next() {
+        match pair.as_rule() {
+            Rule::Nullable => {
+                is_nullable = true;
+            }
+            Rule::ObjectLiteral => {
+                metadata = match parse_literal(pair) {
+                    Literal::Object(fields) => Some(fields),
+                    _ => panic!("unexpected metadata literal"),
+                };
+            }
+            _ => panic!("unexpected shape rule: {:?}", pair.as_rule()),
         }
     }
 
-    context.pop_exact(Token::CloseBrace)?;
-
-    Ok((name, Service { methods }))
-}
-
-fn parse_extern_type(context: &mut Context) -> Result<(String, External), ParseError> {
-    context.pop_exact(Token::Keyword(Keyword::Extern))?;
-    context.pop_exact(Token::Keyword(Keyword::Alias))?;
-    let name = context.pop_identifier()?;
-    context.pop_exact(Token::Equals)?;
-    let shape = parse_annotated_shape(context)?;
-    context.pop_exact(Token::SemiColon)?;
-
-    Ok((name, External { shape }))
-}
-
-fn parse_alias(context: &mut Context) -> Result<(String, Alias), ParseError> {
-    context.pop_exact(Token::Keyword(Keyword::Alias))?;
-    let name = context.pop_identifier()?;
-    context.pop_exact(Token::Equals)?;
-    let shape = parse_annotated_shape(context)?;
-    context.pop_exact(Token::SemiColon)?;
-
-    Ok((name, Alias { shape }))
-}
-
-fn parse_struct(context: &mut Context) -> Result<(String, Struct), ParseError> {
-    context.pop_exact(Token::Keyword(Keyword::Struct))?;
-    let name = context.pop_identifier()?;
-    context.pop_exact(Token::OpenBrace)?;
-
-    let mut fields = OrderedHashMap::new();
-
-    loop {
-        let name = context.pop_identifier()?;
-        context.pop_exact(Token::Colon)?;
-        let def = parse_annotated_shape(context)?;
-        fields.insert(name, def);
-
-        if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
-            break;
-        }
+    Annotated {
+        inner: if is_nullable {
+            Shape::Nullable(Box::new(shape))
+        } else {
+            shape
+        },
+        metadata: metadata.unwrap_or_default(),
     }
-
-    context.pop_exact(Token::CloseBrace)?;
-
-    Ok((name, Struct { fields }))
 }
 
-fn parse_enum(context: &mut Context) -> Result<(String, Enum), ParseError> {
-    context.pop_exact(Token::Keyword(Keyword::Enum))?;
-    let name = context.pop_identifier()?;
-    context.pop_exact(Token::OpenBrace)?;
+fn parse_literal(pair: Pair<Rule>) -> Literal {
+    match pair.as_rule() {
+        Rule::BoolLiteral => Literal::Bool(pair.as_str().parse().unwrap()),
+        Rule::IntLiteral => Literal::Int(pair.as_str().parse().unwrap()),
+        Rule::FloatLiteral => Literal::Float(pair.as_str().parse().unwrap()),
+        Rule::StringLiteral => Literal::String(&pair.as_str()[1..pair.as_str().len() - 1]),
+        Rule::ObjectLiteral => {
+            let mut pairs = pair.into_inner();
+            let mut fields = OrderedHashMap::new();
 
-    let mut fields = Vec::new();
-
-    loop {
-        let name = context.pop_identifier()?;
-        fields.push(name);
-
-        if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
-            break;
-        }
-    }
-
-    context.pop_exact(Token::CloseBrace)?;
-
-    Ok((name, Enum { values: fields }))
-}
-
-fn parse_annotated_shape(context: &mut Context) -> Result<Annotated<Shape>, ParseError> {
-    let name = context.pop_identifier()?;
-    let mut args = Vec::new();
-
-    if context.pop_if(Token::AngleBracketOpen).is_some() {
-        loop {
-            args.push(context.pop_identifier()?);
-
-            if context.pop_if(Token::AngleBracketClose).is_some() {
-                break;
+            while let Some(pair) = pairs.next() {
+                let value = parse_literal(pairs.next().unwrap());
+                fields.insert(pair.as_str(), value);
             }
 
-            context.pop_exact(Token::Comma)?;
+            Literal::Object(fields)
         }
-    }
-
-    let mut metadata = OrderedHashMap::new();
-    if context.pop_if(Token::Ampersand).is_some() {
-        parse_metadata(context, &mut metadata)?;
-    }
-
-    let mut shape = parse_shape(name, args);
-    if context.pop_if(Token::QuestionMark).is_some() {
-        shape = Shape::Nullable(Box::new(shape));
-    }
-
-    Ok(Annotated {
-        inner: shape,
-        metadata,
-    })
-}
-
-fn parse_metadata(
-    context: &mut Context,
-    data: &mut OrderedHashMap<String, String>,
-) -> Result<(), ParseError> {
-    context.pop_exact(Token::OpenBrace)?;
-
-    loop {
-        let key = context.pop_identifier()?;
-        context.pop_exact(Token::Colon)?;
-        let value = context.pop_string_literal()?;
-        data.insert(key, value);
-
-        if context.pop_if(Token::Comma).is_none() || context.peek() == Some(&Token::CloseBrace) {
-            break;
+        Rule::ArrayLiteral => {
+            let values = pair.into_inner().map(parse_literal).collect();
+            Literal::Array(values)
         }
-    }
-
-    context.pop_exact(Token::CloseBrace)?;
-
-    Ok(())
-}
-
-fn parse_shape(name: String, args: Vec<String>) -> Shape {
-    if let Ok(primitive) = Primitive::try_from(name.as_str()) {
-        return Shape::Primitive(primitive);
-    }
-
-    match name.as_str() {
-        "List" => {
-            let [inner] = &args[..] else {
-                panic!("Expected one argument for List but got {:?}", args)
-            };
-            Shape::List(Box::new(parse_shape(inner.to_owned(), vec![])))
-        }
-        "Map" => {
-            let [key, value] = &args[..] else {
-                panic!("Expected two arguments for Map but got {:?}", args)
-            };
-            Shape::Map(
-                Box::new(parse_shape(key.to_owned(), vec![])),
-                Box::new(parse_shape(value.to_owned(), vec![])),
-            )
-        }
-        _ => Shape::Reference(name),
+        _ => panic!("unexpected literal rule: {:?}", pair.as_rule()),
     }
 }

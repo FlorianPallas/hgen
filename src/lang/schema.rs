@@ -1,189 +1,84 @@
-use super::map::OrderedHashMap;
-use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
+use super::{map::OrderedHashMap, parser::parse_schema};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Schema {
-    pub imports: Vec<String>,
-    pub models: OrderedHashMap<String, Model>,
-    pub services: OrderedHashMap<String, Service>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct Schema<'a> {
+    pub models: OrderedHashMap<&'a str, Model<'a>>,
+    pub services: OrderedHashMap<&'a str, Service<'a>>,
 }
 
-impl Default for Schema {
-    fn default() -> Self {
-        Self {
-            imports: Default::default(),
-            models: Default::default(),
-            services: Default::default(),
-        }
+impl<'a> Schema<'a> {
+    pub fn parse(source: &'a str) -> Self {
+        parse_schema(source)
     }
 }
 
-impl Schema {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-    pub fn extend(&mut self, other: Schema) {
-        self.imports.extend(other.imports);
-        self.models.extend(other.models);
-        self.services.extend(other.services);
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub enum Model<'a> {
+    Struct(Struct<'a>),
+    Enum(Enum<'a>),
+    Alias(Alias<'a>),
+    External(External<'a>),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Service {
-    pub methods: Vec<Annotated<Method>>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct Service<'a> {
+    pub methods: OrderedHashMap<&'a str, Annotated<'a, ServiceMethod<'a>>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Method {
-    pub name: String,
-    pub inputs: OrderedHashMap<String, Annotated<Shape>>,
-    pub output: Annotated<Shape>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct ServiceMethod<'a> {
+    pub inputs: OrderedHashMap<&'a str, Shape<'a>>,
+    pub output: Option<Shape<'a>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum Model {
-    Struct(Struct),
-    Enum(Enum),
-    Alias(Alias),
-    External(External),
+#[derive(Debug, Clone, PartialEq)]
+pub struct Alias<'a> {
+    pub shape: Annotated<'a, Shape<'a>>,
 }
 
-impl ToString for Model {
-    fn to_string(&self) -> String {
-        match self {
-            Model::Struct(_) => "Struct",
-            Model::Enum(_) => "Enum",
-            Model::Alias(_) => "Alias",
-            Model::External(_) => "External",
-        }
-        .to_owned()
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct External<'a> {
+    pub shape: Annotated<'a, Shape<'a>>,
 }
 
-impl From<Struct> for Model {
-    fn from(value: Struct) -> Self {
-        Model::Struct(value)
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Struct<'a> {
+    pub fields: OrderedHashMap<&'a str, Annotated<'a, Shape<'a>>>,
 }
 
-impl From<Enum> for Model {
-    fn from(value: Enum) -> Self {
-        Model::Enum(value)
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Enum<'a> {
+    pub fields: Vec<&'a str>,
 }
 
-impl From<Alias> for Model {
-    fn from(value: Alias) -> Self {
-        Model::Alias(value)
-    }
-}
-
-impl From<External> for Model {
-    fn from(value: External) -> Self {
-        Model::External(value)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Struct {
-    pub fields: OrderedHashMap<String, Annotated<Shape>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Enum {
-    pub values: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Annotated<T> {
-    pub inner: T,
-    pub metadata: OrderedHashMap<String, String>,
-}
-
-impl Deref for Annotated<Shape> {
-    type Target = Shape;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for Annotated<Shape> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Alias {
-    pub shape: Annotated<Shape>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct External {
-    pub shape: Annotated<Shape>,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum Shape {
-    Primitive(Primitive),
-    Nullable(Box<Shape>),
-    List(Box<Shape>),
-    Map(Box<Shape>, Box<Shape>),
-    Reference(String),
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum Primitive {
-    Unit,
-    String,
+#[derive(Debug, Clone, PartialEq)]
+pub enum Shape<'a> {
     Bool,
     Int8,
     Int16,
     Int32,
     Int64,
-    Int128,
     Float32,
     Float64,
+    String,
+    List(Box<Shape<'a>>),
+    Map(Box<Shape<'a>>, Box<Shape<'a>>),
+    Reference(&'a str),
+    Nullable(Box<Shape<'a>>),
 }
 
-impl ToString for Primitive {
-    fn to_string(&self) -> String {
-        match self {
-            Primitive::Unit => "Unit",
-            Primitive::String => "String",
-            Primitive::Bool => "Bool",
-            Primitive::Int8 => "Int8",
-            Primitive::Int16 => "Int16",
-            Primitive::Int32 => "Int32",
-            Primitive::Int64 => "Int64",
-            Primitive::Int128 => "Int128",
-            Primitive::Float32 => "Float32",
-            Primitive::Float64 => "Float64",
-        }
-        .to_owned()
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Annotated<'a, T> {
+    pub metadata: OrderedHashMap<&'a str, Literal<'a>>,
+    pub inner: T,
 }
 
-impl TryFrom<&str> for Primitive {
-    type Error = &'static str;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "Unit" => Ok(Primitive::Unit),
-            "String" => Ok(Primitive::String),
-            "Bool" => Ok(Primitive::Bool),
-            "Int8" => Ok(Primitive::Int8),
-            "Int16" => Ok(Primitive::Int16),
-            "Int32" => Ok(Primitive::Int32),
-            "Int64" => Ok(Primitive::Int64),
-            "Int128" => Ok(Primitive::Int128),
-            "Float32" => Ok(Primitive::Float32),
-            "Float64" => Ok(Primitive::Float64),
-            _ => Err("Invalid primitive"),
-        }
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal<'a> {
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+    String(&'a str),
+    Object(OrderedHashMap<&'a str, Literal<'a>>),
+    Array(Vec<Literal<'a>>),
 }

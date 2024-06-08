@@ -1,6 +1,0 @@
-struct Post {
-  slug: String,
-  title: String,
-  body: String,
-  author: String,  
-}

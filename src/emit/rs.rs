@@ -21,7 +21,7 @@ fn emit_model(name: &str, def: &Model) -> String {
     match def {
         Model::Struct(inner) => emit_struct(name, inner),
         Model::Enum(inner) => emit_enum(name, inner),
-        Model::Alias(inner) => format!("pub type {} = {};\n", name, emit_shape(&inner.shape)),
+        Model::Alias(inner) => format!("pub type {} = {};\n", name, emit_shape(&inner.shape.inner)),
         Model::External(_) => format!("use external::{};\n", name),
     }
 }
@@ -36,7 +36,7 @@ fn emit_struct(name: &str, def: &Struct) -> String {
         output.push_str(&format!(
             "    pub {}: {},\n",
             name.to_snake_case(),
-            emit_shape(shape)
+            emit_shape(&shape.inner)
         ));
     });
     output.push_str("}\n");
@@ -50,7 +50,7 @@ fn emit_enum(name: &str, def: &Enum) -> String {
     output.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
     output.push_str(&format!("pub enum {} ", name));
     output.push_str("{\n");
-    def.values.iter().for_each(|value| {
+    def.fields.iter().for_each(|value| {
         output.push_str(&format!("    {},\n", value,));
     });
     output.push_str("}\n");
@@ -60,23 +60,18 @@ fn emit_enum(name: &str, def: &Enum) -> String {
 
 fn emit_shape(def: &Shape) -> String {
     match def {
-        Shape::Primitive(primitive) => match primitive {
-            Primitive::Unit { .. } => "()",
-            Primitive::Bool { .. } => "bool",
-            Primitive::Int8 { .. } => "i8",
-            Primitive::Int16 { .. } => "i16",
-            Primitive::Int32 { .. } => "i32",
-            Primitive::Int64 { .. } => "i64",
-            Primitive::Int128 { .. } => "i128",
-            Primitive::Float32 { .. } => "f32",
-            Primitive::Float64 { .. } => "f64",
-            Primitive::String { .. } => "String",
-        }
-        .to_owned(),
+        Shape::Bool => "bool".to_owned(),
+        Shape::Int8 => "i8".to_owned(),
+        Shape::Int16 => "i16".to_owned(),
+        Shape::Int32 => "i32".to_owned(),
+        Shape::Int64 => "i64".to_owned(),
+        Shape::Float32 => "f32".to_owned(),
+        Shape::Float64 => "f64".to_owned(),
+        Shape::String => "String".to_owned(),
         Shape::Nullable(inner) => format!("Option<{}>", emit_shape(inner)),
         Shape::List(inner) => format!("Vec<{}>", emit_shape(inner)),
         Shape::Map(key, value) => format!("Map<{}, {}>", emit_shape(key), emit_shape(value)),
-        Shape::Reference(name) => name.to_owned(),
+        Shape::Reference(name) => (*name).to_owned(),
     }
 }
 

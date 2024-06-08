@@ -9,5 +9,5 @@ license = "MIT"
 anyhow = "1.0.83"
 clap = { version = "4.5.4", features = ["derive"] }
 console = "0.15.8"
-serde = { version = "1.0.201", features = ["derive"] }
-thiserror = "1.0.60"
+pest = "2.7.10"
+pest_derive = "2.7.10"
